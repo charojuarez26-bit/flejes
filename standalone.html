@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo Golosinas - Generador de Flejes (10 por Hoja A4)</title>
+  <style>
+    /* ==========================================================================
+       VARIABLES Y RESET
+       ========================================================================== */
+    :root {
+      --bg-app: #0f172a;
+      --bg-panel: #ffffff;
+      --bg-canvas: #1e293b;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
+      --success-hover: #059669;
+      --danger: #ef4444;
+      --border: #cbd5e1;
+      --border-focus: #2563eb;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-sheet: 0 12px 35px rgba(0,0,0,0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ==========================================================================
+       BARRA SUPERIOR (HEADER)
+       ========================================================================== */
+    .app-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      background: #f59e0b;
+      color: #0f172a;
+      font-weight: 900;
+      font-size: 1.1rem;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .brand-titles h1 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-titles p {
+      font-size: 0.76rem;
+      color: #94a3b8;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      transition: all 0.2s ease;
+    }
+
+    .status-indicator.ready {
+      background: rgba(16, 185, 129, 0.16);
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.4);
+    }
+
+    .status-indicator.pending {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border-color: rgba(251, 191, 36, 0.4);
+    }
+
+    .btn-print-batch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--success);
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-print-batch:hover:not(:disabled) {
+      background: var(--success-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-print-batch:disabled {
+      background: #475569;
+      color: #94a3b8;
+      cursor: not-allowed;
+      opacity: 0.55;
+      box-shadow: none;
+      transform: none;
+    }
+
+    /* ==========================================================================
+       LAYOUT PANTALLA DIVIDIDA (50% / 50%)
+       ========================================================================== */
+    .app-workspace {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 57px);
+      overflow: hidden;
+    }
+
+    /* Panel Izquierdo: Carga y Lista */
+    .panel-left {
+      width: 44%;
+      min-width: 420px;
+      max-width: 550px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    /* Panel Derecho: Vista Previa A4 */
+    .panel-right {
+      flex: 1;
+      background: var(--bg-canvas);
+      overflow-y: auto;
+      overflow-x: auto;
+      padding: 20px 24px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* ==========================================================================
+       FORMULARIO DE ENTRADA RÁPIDA (UX POR TECLADO)
+       ========================================================================== */
+    .form-wrapper {
+      padding: 16px 20px 12px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .form-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .form-heading {
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #334155;
+    }
+
+    .keyboard-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #475569;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .form-group {
+      margin-bottom: 10px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 3px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 8px 11px;
+      font-size: 0.92rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    .form-input:focus {
+      border-color: var(--border-focus);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    /* Checkbox Oferta */
+    .checkbox-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      background: #f8fafc;
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .checkbox-box:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+
+    .checkbox-box input[type="checkbox"] {
+      width: 17px;
+      height: 17px;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+
+    .checkbox-text {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .offer-collapsible {
+      display: none;
+      margin-bottom: 10px;
+    }
+
+    .offer-collapsible.active {
+      display: block;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-buttons-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .btn-submit-item {
+      flex: 2;
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      padding: 9px 14px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+
+    .btn-submit-item:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-quick-demo {
+      flex: 1;
+      background: #e2e8f0;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      padding: 9px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-quick-demo:hover {
+      background: #cbd5e1;
+    }
+
+    /* ==========================================================================
+       LISTA DE ARTÍCULOS CARGADOS
+       ========================================================================== */
+    .list-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .list-bar {
+      padding: 9px 18px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .list-bar-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-reset-list {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 3px 6px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .btn-reset-list:hover {
+      color: var(--danger);
+      background: #fee2e2;
+    }
+
+    .table-scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 14px;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+
+    .items-table th {
+      text-align: left;
+      padding: 7px 8px;
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 700;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .items-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+
+    .items-table tr:hover {
+      background: #f8fafc;
+    }
+
+    .badge-num {
+      display: inline-block;
+      width: 19px;
+      height: 19px;
+      line-height: 19px;
+      text-align: center;
+      background: #e2e8f0;
+      color: #475569;
+      border-radius: 50%;
+      font-size: 0.68rem;
+      font-weight: 800;
+    }
+
+    .product-name-col {
+      font-weight: 700;
+      color: #0f172a;
+      max-width: 160px;
+      word-break: break-word;
+    }
+
+    .product-price-col {
+      font-weight: 800;
+      color: #047857;
+      white-space: nowrap;
+    }
+
+    .product-old-price-text {
+      display: block;
+      font-size: 0.7rem;
+      color: #94a3b8;
+      text-decoration: line-through;
+      font-weight: 600;
+    }
+
+    .product-box-col {
+      color: #64748b;
+      font-size: 0.75rem;
+    }
+
+    .btn-delete-row {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 3px 6px;
+      border-radius: 4px;
+      transition: all 0.15s;
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+
+    .btn-delete-row:hover {
+      color: var(--danger);
+      background: #fee2e2;
+    }
+
+    .empty-placeholder {
+      text-align: center;
+      padding: 35px 20px;
+      color: #94a3b8;
+    }
+
+    .empty-placeholder svg {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 8px;
+      stroke: #cbd5e1;
+    }
+
+    .empty-placeholder p {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    /* ==========================================================================
+       FIRMA DIGITAL / ACERCA DE (PM SOLUCIONES DIGITALES)
+       ========================================================================== */
+    .software-credits-footer {
+      padding: 8px 14px;
+      background: #0f172a;
+      border-top: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    .software-credits-footer a {
+      color: #38bdf8;
+      text-decoration: none;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .software-credits-footer a:hover {
+      text-decoration: underline;
+      color: #7dd3fc;
+    }
+
+    .btn-credits-info {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-credits-info:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    /* ==========================================================================
+       VISTA PREVIA A4 EN PANTALLA (PANEL DERECHO)
+       ========================================================================== */
+    .preview-header-bar {
+      width: 100%;
+      max-width: 210mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      color: #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    .preview-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sheets-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      align-items: center;
+      width: 100%;
+    }
+
+    .page-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .page-tag-header {
+      width: 210mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 6px;
+      margin-bottom: 6px;
+      color: #94a3b8;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ==========================================================================
+       HOJA A4 (2 COLUMNAS x 5 FILAS = 10 FLEJES CON SEPARACIÓN / GAP)
+       ========================================================================== */
+    .a4-page {
+      width: 210mm;
+      height: 297mm;
+      background: #ffffff;
+      box-shadow: var(--shadow-sheet);
+      box-sizing: border-box;
+      padding: 4.5mm; /* Margen perimetral seguro de impresión */
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(5, 1fr); /* 5 filas = 10 flejes */
+      gap: 3mm; /* SEPARACIÓN FÍSICA (GAP) ENTRE FLEJES PARA EL CORTE */
+      position: relative;
+    }
+
+    /* ==========================================================================
+       DISEÑO INTERNO DEL FLEJE (CENTRADOS Y PRECIO GIGANTE)
+       ========================================================================== */
+    .fleje-cell {
+      border: 1px dashed #64748b;
+      box-sizing: border-box;
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #ffffff;
+      position: relative;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* Encabezado: Todo Golosinas */
+    .fleje-brand-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1.5px solid #0f172a;
+      padding-bottom: 2px;
+      margin-bottom: 2px;
+    }
+
+    .brand-name-tag {
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #0f172a;
+    }
+
+    .offer-badge {
+      font-size: 0.6rem;
+      font-weight: 800;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 1px 4px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1;
+    }
+
+    .offer-badge.promo {
+      background: #dc2626;
+      color: #ffffff;
+    }
+
+    /* Nombre del Producto: Centrado */
+    .fleje-product-body {
+      text-align: center; /* ALINEADO AL CENTRO */
+      margin: 1px 0;
+    }
+
+    .fleje-title {
+      font-size: 0.88rem;
+      font-weight: 800;
+      line-height: 1.15;
+      color: #0f172a;
+      text-transform: uppercase;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+      text-align: center;
+    }
+
+    /* Sección de Precios: Centrada Vertical y Horizontalmente con Fuente Enorme */
+    .fleje-prices-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;     /* CENTRADO HORIZONTAL */
+      justify-content: center; /* CENTRADO VERTICAL */
+      flex: 1;
+      margin: 1px 0;
+    }
+
+    /* Precio Anterior (Tachado justo arriba del precio nuevo) */
+    .old-price-center-box {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 1px;
+    }
+
+    .old-price-caption {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #64748b;
+      line-height: 1;
+    }
+
+    .old-price-amount {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: #dc2626;
+      text-decoration: line-through;
+      line-height: 1;
+      letter-spacing: -0.5px;
+    }
+
+    /* Precio Actual: Gigante y en el Medio */
+    .current-price-center-box {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .currency-symbol {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1;
+    }
+
+    .current-price-amount {
+      font-size: 2.75rem; /* TAMAÑO DE FUENTE MUCHO MÁS GRANDE */
+      font-weight: 900;
+      letter-spacing: -2px;
+      line-height: 0.9;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Pie del Fleje */
+    .fleje-footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 2px;
+      margin-top: 1px;
+      font-size: 0.62rem;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .fleje-pack-info {
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .fleje-date-info {
+      font-size: 0.58rem;
+      color: #94a3b8;
+    }
+
+    /* Slot vacío en la hoja A4 */
+    .fleje-cell.empty-slot {
+      border: 1.5px dashed #cbd5e1;
+      background: #fafafa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      text-align: center;
+      flex-direction: column;
+      gap: 4px;
+      user-select: none;
+    }
+
+    .slot-icon {
+      font-size: 1.1rem;
+      opacity: 0.45;
+    }
+
+    .slot-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .slot-desc {
+      font-size: 0.6rem;
+      color: #cbd5e1;
+    }
+
+    /* Modal Créditos */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      width: 100%;
+      max-width: 420px;
+      border-radius: var(--radius-md);
+      padding: 24px;
+      position: relative;
+    }
+
+    .modal-card h3 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #38bdf8;
+    }
+
+    .modal-card p {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn-contact-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-decoration: none;
+      color: #ffffff;
+      background: #16a34a;
+      transition: background 0.15s;
+    }
+
+    .btn-contact-link:hover {
+      background: #15803d;
+    }
+
+    .btn-close-modal {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+
+    /* ==========================================================================
+       ESTILOS DE IMPRESIÓN (@media print)
+       ========================================================================== */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0mm; /* Cero márgenes del navegador para cálculo milimétrico */
+      }
+
+      *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+
+      html, body {
+        width: 210mm !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        overflow: visible !important;
+      }
+
+      /* Ocultar interfaz web */
+      .app-header,
+      .panel-left,
+      .preview-header-bar,
+      .page-tag-header,
+      .modal-backdrop,
+      .no-print {
+        display: none !important;
+      }
+
+      .app-workspace {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      .panel-right {
+        display: block !important;
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 210mm !important;
+        overflow: visible !important;
+      }
+
+      .sheets-stack {
+        display: block !important;
+        gap: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 210mm !important;
+      }
+
+      .page-unit {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        max-height: 297mm !important;
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+
+      .page-unit:last-child {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+
+      .a4-page {
+        width: 210mm !important;
+        height: 296mm !important; /* Altura segura para evitar desborde a hoja en blanco */
+        max-height: 296mm !important;
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 4.5mm !important;
+        box-sizing: border-box !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        grid-template-rows: repeat(5, 1fr) !important;
+        gap: 3mm !important; /* MANTIENE EL ESPACIO DE CORTE FÍSICO ENTRE FLEJES */
+        overflow: hidden !important;
+      }
+
+      .fleje-cell {
+        border: 1px dashed #64748b !important;
+      }
+
+      .fleje-cell.empty-slot {
+        border: 1px dashed #e2e8f0 !important;
+        opacity: 0.1 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       BARRA SUPERIOR (HEADER)
+       ======================================================================== -->
+  <header class="app-header no-print">
+    <div class="brand-section">
+      <div class="brand-badge">TG</div>
+      <div class="brand-titles">
+        <h1>TODO GOLOSINAS</h1>
+        <p>Generador de Flejes (Formato 10 por Hoja A4 • 2x5)</p>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div id="statusBadge" class="status-indicator pending">
+        <span id="statusIcon">⚠️</span>
+        <span id="statusText">0 artículos cargados (Faltan 10 para imprimir)</span>
+      </div>
+
+      <button id="btnPrint" class="btn-print-batch" disabled title="Solo se habilita con tandas exactas de 10 flejes">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        <span>Imprimir Tanda</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       ESPACIO PRINCIPAL: PANTALLA DIVIDIDA
+       ======================================================================== -->
+  <main class="app-workspace">
+
+    <!-- MITAD IZQUIERDA: FORMULARIO Y LISTA DE ARTÍCULOS -->
+    <section class="panel-left no-print">
+
+      <!-- Formulario de Entrada Rápida -->
+      <div class="form-wrapper">
+        <div class="form-header-row">
+          <span class="form-heading">Nuevo Fleje</span>
+          <span class="keyboard-badge">⌨️ [Enter] en último campo agrega</span>
+        </div>
+
+        <form id="flejeForm" autocomplete="off" onsubmit="return false;">
+          
+          <!-- 1. Nombre del Producto -->
+          <div class="form-group">
+            <label class="form-label" for="inputNombre">Nombre del Producto *</label>
+            <input 
+              type="text" 
+              id="inputNombre" 
+              class="form-input" 
+              placeholder="Ej: Chocolate Block 38g" 
+              required
+              autofocus
+            >
+          </div>
+
+          <!-- 2. Precio Actual -->
+          <div class="form-group">
+            <label class="form-label" for="inputPrecioActual">Precio Actual ($) *</label>
+            <input 
+              type="text" 
+              id="inputPrecioActual" 
+              class="form-input" 
+              placeholder="Ej: 1450 o 1.450" 
+              required
+            >
+          </div>
+
+          <!-- 3. Checkbox: ¿Tiene precio anterior/oferta? -->
+          <label class="checkbox-box" for="checkOferta">
+            <input type="checkbox" id="checkOferta">
+            <span class="checkbox-text">¿Tiene precio anterior / oferta?</span>
+          </label>
+
+          <!-- 3b. Campo condicional: Precio Anterior -->
+          <div id="boxPrecioAnterior" class="offer-collapsible">
+            <div class="form-group">
+              <label class="form-label" for="inputPrecioAnterior">Precio Anterior / Tachado ($)</label>
+              <input 
+                type="text" 
+                id="inputPrecioAnterior" 
+                class="form-input" 
+                placeholder="Ej: 1800"
+              >
+            </div>
+          </div>
+
+          <!-- 4. Cantidad por Caja (Último campo) -->
+          <div class="form-group">
+            <label class="form-label" for="inputCantidadCaja">Cantidad por Caja</label>
+            <input 
+              type="text" 
+              id="inputCantidadCaja" 
+              class="form-input" 
+              placeholder="Ej: 24 u. (o presiona Enter para agregar)"
+            >
+          </div>
+
+          <!-- Botones -->
+          <div class="form-buttons-row">
+            <button type="submit" id="btnAdd" class="btn-submit-item">
+              <span>+ Agregar a la Tanda</span>
+              <small style="opacity: 0.8; font-weight: normal;">(Enter)</small>
+            </button>
+            <button type="button" id="btnDemo" class="btn-quick-demo" title="Carga exactamente 10 artículos para habilitar la impresión instantáneamente">
+              ⚡ Cargar 10 de Prueba
+            </button>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Lista de Artículos en la Tanda -->
+      <div class="list-wrapper">
+        <div class="list-bar">
+          <span class="list-bar-title">Artículos en Tanda (<span id="itemsCounter">0</span>)</span>
+          <button id="btnResetList" class="btn-reset-list" title="Limpiar todos los artículos">
+            Vaciar Lista
+          </button>
+        </div>
+
+        <div class="table-scroll-area">
+          <table class="items-table" id="itemsTable">
+            <thead>
+              <tr>
+                <th style="width: 28px;">#</th>
+                <th>Producto</th>
+                <th style="width: 100px;">Precio</th>
+                <th style="width: 70px;">Caja</th>
+                <th style="width: 30px; text-align: center;"></th>
+              </tr>
+            </thead>
+            <tbody id="itemsTableBody">
+              <!-- Renderizado dinámicamente -->
+            </tbody>
+          </table>
+
+          <div id="emptyPlaceholder" class="empty-placeholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+            </svg>
+            <p>No hay artículos cargados</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Firma Digital Permanente: PM Soluciones Digitales -->
+      <footer class="software-credits-footer no-print">
+        <span>Desarrollado por <strong>PM Soluciones Digitales</strong></span>
+        <button id="btnOpenCreditsModal" class="btn-credits-info" type="button">
+          Soporte / Contacto
+        </button>
+      </footer>
+
+    </section>
+
+    <!-- MITAD DERECHA: VISTA PREVIA A4 EN TIEMPO REAL -->
+    <section class="panel-right">
+      <div class="preview-header-bar no-print">
+        <div class="preview-title">
+          <span>📄 Previsualización A4 (Cuadrícula 2×5 = 10 Flejes)</span>
+          <span id="previewPageText" style="color: #94a3b8; font-weight: normal;">(1 hoja)</span>
+        </div>
+        <div style="font-size: 0.72rem; color: #94a3b8; background: rgba(15,23,42,0.6); padding: 4px 10px; border-radius: 4px; border: 1px solid #334155;">
+          Separación física de 3mm entre etiquetas para corte con tijera
+        </div>
+      </div>
+
+      <!-- Contenedor de Hojas A4 -->
+      <div id="sheetsStack" class="sheets-stack">
+        <!-- Renderizado dinámicamente -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal Acerca de / Firma Digital -->
+  <div id="creditsModal" class="modal-backdrop no-print">
+    <div class="modal-card">
+      <button id="btnCloseCreditsModal" class="btn-close-modal" type="button">✕</button>
+      <h3>PM Soluciones Digitales</h3>
+      <p>
+        Software para la generación, gestión e impresión de flejes de precios para góndolas de supermercados, farmacias y minimarkets.
+      </p>
+      <div class="modal-actions">
+        <a href="https://wa.me/?text=Hola%20PM%20Soluciones%20Digitales,%20necesito%20soporte%20sobre%20el%20generador%20de%20flejes" target="_blank" class="btn-contact-link">
+          <span>💬 Contactar por WhatsApp</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       JAVASCRIPT VANILLA (VOLÁTIL, SIN LOCALSTORAGE, REGLAS DE 10)
+       ======================================================================== -->
+  <script>
+    (function() {
+      "use strict";
+
+      // ------------------------------------------------------------------------
+      // ESTADO EN MEMORIA (Volátil - al recargar la página se limpia todo)
+      // ------------------------------------------------------------------------
+      let items = [];
+
+      // ------------------------------------------------------------------------
+      // SELECTORES DOM
+      // ------------------------------------------------------------------------
+      const flejeForm = document.getElementById("flejeForm");
+      const inputNombre = document.getElementById("inputNombre");
+      const inputPrecioActual = document.getElementById("inputPrecioActual");
+      const checkOferta = document.getElementById("checkOferta");
+      const boxPrecioAnterior = document.getElementById("boxPrecioAnterior");
+      const inputPrecioAnterior = document.getElementById("inputPrecioAnterior");
+      const inputCantidadCaja = document.getElementById("inputCantidadCaja");
+      const btnAdd = document.getElementById("btnAdd");
+      const btnDemo = document.getElementById("btnDemo");
+      const btnResetList = document.getElementById("btnResetList");
+      const btnPrint = document.getElementById("btnPrint");
+
+      const statusBadge = document.getElementById("statusBadge");
+      const statusIcon = document.getElementById("statusIcon");
+      const statusText = document.getElementById("statusText");
+      const itemsCounter = document.getElementById("itemsCounter");
+      const itemsTable = document.getElementById("itemsTable");
+      const itemsTableBody = document.getElementById("itemsTableBody");
+      const emptyPlaceholder = document.getElementById("emptyPlaceholder");
+      const sheetsStack = document.getElementById("sheetsStack");
+      const previewPageText = document.getElementById("previewPageText");
+
+      const creditsModal = document.getElementById("creditsModal");
+      const btnOpenCreditsModal = document.getElementById("btnOpenCreditsModal");
+      const btnCloseCreditsModal = document.getElementById("btnCloseCreditsModal");
+
+      // Fecha actual para los flejes (formato DD/MM/AA)
+      const now = new Date();
+      const formattedDate = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getFullYear()).slice(-2)}`;
+
+      // ------------------------------------------------------------------------
+      // FORMATEO DE PRECIO
+      // ------------------------------------------------------------------------
+      function formatPriceDisplay(val) {
+        if (!val) return "";
+        let clean = val.toString().replace(/[$ ]/g, "").trim();
+        let numStr = clean.replace(/\./g, "").replace(",", ".");
+        let num = parseFloat(numStr);
+        if (isNaN(num)) return `$ ${clean}`;
+
+        let parts = num.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).split(",");
+        return `$ ${parts[0]}${parts[1] ? ',' + parts[1] : ''}`;
+      }
+
+      // ------------------------------------------------------------------------
+      // VISIBILIDAD DE PRECIO ANTERIOR
+      // ------------------------------------------------------------------------
+      checkOferta.addEventListener("change", function() {
+        if (this.checked) {
+          boxPrecioAnterior.classList.add("active");
+          inputPrecioAnterior.focus();
+        } else {
+          boxPrecioAnterior.classList.remove("active");
+          inputPrecioAnterior.value = "";
+        }
+      });
+
+      // ------------------------------------------------------------------------
+      // FLUJO POR TECLADO RÁPIDO Y PRECISO
+      // ------------------------------------------------------------------------
+      // 1. Campo Nombre -> Enter pasa a Precio Actual
+      inputNombre.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (this.value.trim() !== "") inputPrecioActual.focus();
+        }
+      });
+
+      // 2. Campo Precio Actual -> Enter pasa a Oferta (si está activa) o a Cantidad por Caja
+      inputPrecioActual.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (this.value.trim() !== "") {
+            if (checkOferta.checked) {
+              inputPrecioAnterior.focus();
+            } else {
+              inputCantidadCaja.focus();
+            }
+          }
+        }
+      });
+
+      // 3. Campo Precio Anterior -> Enter pasa a Cantidad por Caja
+      inputPrecioAnterior.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          inputCantidadCaja.focus();
+        }
+      });
+
+      // 4. Último campo: Cantidad por Caja -> Enter agrega el fleje, limpia y vuelve a Nombre
+      inputCantidadCaja.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          processItemSubmission();
+        }
+      });
+
+      flejeForm.addEventListener("submit", function(e) {
+        e.preventDefault();
+        processItemSubmission();
+      });
+
+      function processItemSubmission() {
+        const nombre = inputNombre.value.trim();
+        const precioActual = inputPrecioActual.value.trim();
+        const tieneOferta = checkOferta.checked;
+        const precioAnterior = inputPrecioAnterior.value.trim();
+        const cantidadCaja = inputCantidadCaja.value.trim();
+
+        if (!nombre) {
+          inputNombre.focus();
+          return;
+        }
+
+        if (!precioActual) {
+          inputPrecioActual.focus();
+          return;
+        }
+
+        items.push({
+          id: Date.now() + Math.random(),
+          nombre: nombre,
+          precioActual: formatPriceDisplay(precioActual),
+          tieneOferta: tieneOferta && precioAnterior !== "",
+          precioAnterior: tieneOferta && precioAnterior !== "" ? formatPriceDisplay(precioAnterior) : "",
+          cantidadCaja: cantidadCaja
+        });
+
+        // Limpiar formulario y reenfocar automáticamente al primer campo
+        inputNombre.value = "";
+        inputPrecioActual.value = "";
+        inputPrecioAnterior.value = "";
+        inputCantidadCaja.value = "";
+        checkOferta.checked = false;
+        boxPrecioAnterior.classList.remove("active");
+
+        inputNombre.focus();
+        render();
+      }
+
+      // ------------------------------------------------------------------------
+      // ELIMINAR ARTÍCULO
+      // ------------------------------------------------------------------------
+      window.deleteItem = function(index) {
+        items.splice(index, 1);
+        render();
+      };
+
+      // Vaciar lista completa
+      btnResetList.addEventListener("click", function() {
+        if (items.length === 0) return;
+        if (confirm("¿Deseas vaciar todos los artículos cargados?")) {
+          items = [];
+          render();
+          inputNombre.focus();
+        }
+      });
+
+      // ------------------------------------------------------------------------
+      // CARGAR 10 DE PRUEBA (EXACTAMENTE 1 HOJA A4 COMPLETA)
+      // ------------------------------------------------------------------------
+      btnDemo.addEventListener("click", function() {
+        const sample10 = [
+          { nombre: "Alfajor Havanna Mixto 90g", precioActual: "$ 1.850", tieneOferta: true, precioAnterior: "$ 2.200", cantidadCaja: "12 u." },
+          { nombre: "Caramelos Sugus Confitados 50g", precioActual: "$ 750", tieneOferta: false, precioAnterior: "", cantidadCaja: "24 u." },
+          { nombre: "Chocolate Cadbury Frutilla 150g", precioActual: "$ 3.400", tieneOferta: true, precioAnterior: "$ 3.900", cantidadCaja: "16 u." },
+          { nombre: "Chicles Beldent Menta 10g", precioActual: "$ 650", tieneOferta: false, precioAnterior: "", cantidadCaja: "20 u." },
+          { nombre: "Turrón Arcor Maní y Miel 25g", precioActual: "$ 420", tieneOferta: false, precioAnterior: "", cantidadCaja: "50 u." },
+          { nombre: "Gomitas Mogul Ositos Ácidos 100g", precioActual: "$ 1.250", tieneOferta: true, precioAnterior: "$ 1.500", cantidadCaja: "12 u." },
+          { nombre: "Alfajor Guaymallén Triple Blanco", precioActual: "$ 550", tieneOferta: false, precioAnterior: "", cantidadCaja: "24 u." },
+          { nombre: "Bon o Bon Leche Display 15g", precioActual: "$ 480", tieneOferta: false, precioAnterior: "", cantidadCaja: "30 u." },
+          { nombre: "Oblea Tita Clásica 19g", precioActual: "$ 390", tieneOferta: false, precioAnterior: "", cantidadCaja: "36 u." },
+          { nombre: "Alfajor Capitán del Espacio Negro", precioActual: "$ 890", tieneOferta: true, precioAnterior: "$ 1.050", cantidadCaja: "24 u." }
+        ];
+
+        sample10.forEach(item => {
+          items.push({ id: Date.now() + Math.random(), ...item });
+        });
+
+        render();
+        inputNombre.focus();
+      });
+
+      // ------------------------------------------------------------------------
+      // BOTÓN IMPRIMIR (SOLO HABILITADO SI ES MÚLTIPLO DE 10)
+      // ------------------------------------------------------------------------
+      btnPrint.addEventListener("click", function() {
+        if (items.length === 0 || items.length % 10 !== 0) return;
+        window.print();
+      });
+
+      // ------------------------------------------------------------------------
+      // MODAL CRÉDITOS
+      // ------------------------------------------------------------------------
+      btnOpenCreditsModal.addEventListener("click", function() {
+        creditsModal.classList.add("open");
+      });
+
+      btnCloseCreditsModal.addEventListener("click", function() {
+        creditsModal.classList.remove("open");
+      });
+
+      creditsModal.addEventListener("click", function(e) {
+        if (e.target === creditsModal) creditsModal.classList.remove("open");
+      });
+
+      // ------------------------------------------------------------------------
+      // RENDERIZADO GLOBAL
+      // ------------------------------------------------------------------------
+      function render() {
+        renderLeftList();
+        renderA4Preview();
+        updateBatchStatusAndPrintButton();
+      }
+
+      // 1. Render de lista izquierda
+      function renderLeftList() {
+        itemsCounter.textContent = items.length;
+
+        if (items.length === 0) {
+          itemsTable.style.display = "none";
+          emptyPlaceholder.style.display = "block";
+          itemsTableBody.innerHTML = "";
+          return;
+        }
+
+        itemsTable.style.display = "table";
+        emptyPlaceholder.style.display = "none";
+
+        let html = "";
+        items.forEach((item, index) => {
+          html += `
+            <tr>
+              <td><span class="badge-num">${index + 1}</span></td>
+              <td class="product-name-col">
+                <div>${escapeHTML(item.nombre)}</div>
+                ${item.tieneOferta ? `<span style="font-size: 0.65rem; color: #dc2626; font-weight: 800;">★ OFERTA</span>` : ""}
+              </td>
+              <td class="product-price-col">
+                <div>${escapeHTML(item.precioActual)}</div>
+                ${item.tieneOferta && item.precioAnterior ? `<span class="product-old-price-text">${escapeHTML(item.precioAnterior)}</span>` : ""}
+              </td>
+              <td class="product-box-col">${item.cantidadCaja ? escapeHTML(item.cantidadCaja) : "-"}</td>
+              <td style="text-align: center;">
+                <button type="button" class="btn-delete-row" onclick="deleteItem(${index})" title="Eliminar artículo">✕</button>
+              </td>
+            </tr>
+          `;
+        });
+
+        itemsTableBody.innerHTML = html;
+      }
+
+      // 2. Render de la vista previa A4 (Exactamente 10 flejes por hoja: 2 cols x 5 filas)
+      function renderA4Preview() {
+        const totalItems = items.length;
+        const totalPages = Math.max(1, Math.ceil(totalItems / 10));
+        previewPageText.textContent = `(${totalPages} ${totalPages === 1 ? 'hoja A4' : 'hojas A4'})`;
+
+        sheetsStack.innerHTML = "";
+
+        for (let p = 0; p < totalPages; p++) {
+          const startIndex = p * 10;
+          const pageUnit = document.createElement("div");
+          pageUnit.className = "page-unit";
+
+          const tagHeader = document.createElement("div");
+          tagHeader.className = "page-tag-header no-print";
+          const countOnPage = Math.min(10, Math.max(0, totalItems - startIndex));
+          tagHeader.innerHTML = `
+            <span>Página ${p + 1} de ${totalPages}</span>
+            <span>${countOnPage} / 10 flejes</span>
+          `;
+          pageUnit.appendChild(tagHeader);
+
+          const a4Page = document.createElement("div");
+          a4Page.className = "a4-page";
+
+          // Generar los 10 slots por página
+          for (let slot = 0; slot < 10; slot++) {
+            const itemIndex = startIndex + slot;
+            const item = items[itemIndex];
+
+            if (item) {
+              const fleje = document.createElement("div");
+              fleje.className = "fleje-cell";
+              fleje.innerHTML = generateFlejeMarkup(item);
+              a4Page.appendChild(fleje);
+            } else {
+              const emptySlot = document.createElement("div");
+              emptySlot.className = "fleje-cell empty-slot";
+              emptySlot.innerHTML = `
+                <div class="slot-icon">🏷️</div>
+                <div class="slot-label">Espacio ${slot + 1} de 10</div>
+                <div class="slot-desc">Disponible para completar hoja</div>
+              `;
+              a4Page.appendChild(emptySlot);
+            }
+          }
+
+          pageUnit.appendChild(a4Page);
+          sheetsStack.appendChild(pageUnit);
+        }
+      }
+
+      // 3. Estructura interna de cada Fleje (Nombre centrado y Precio gigante centrado)
+      function generateFlejeMarkup(item) {
+        const hasOffer = item.tieneOferta && item.precioAnterior;
+        const rawPriceNumber = item.precioActual.replace('$', '').trim();
+
+        return `
+          <!-- Cabecera -->
+          <div class="fleje-brand-header">
+            <span class="brand-name-tag">Todo Golosinas</span>
+            ${hasOffer ? '<span class="offer-badge promo">OFERTA</span>' : '<span class="offer-badge">PRECIO</span>'}
+          </div>
+
+          <!-- Nombre del Producto: Alineado al Centro -->
+          <div class="fleje-product-body">
+            <div class="fleje-title" title="${escapeHTML(item.nombre)}">
+              ${escapeHTML(item.nombre)}
+            </div>
+          </div>
+
+          <!-- Precios: Centrado Horizontal y Verticalmente, Precio Mucho Más Grande -->
+          <div class="fleje-prices-center">
+            ${hasOffer ? `
+              <div class="old-price-center-box">
+                <span class="old-price-caption">Antes</span>
+                <span class="old-price-amount">${escapeHTML(item.precioAnterior)}</span>
+              </div>
+            ` : ''}
+
+            <div class="current-price-center-box">
+              <span class="currency-symbol">$</span>
+              <span class="current-price-amount">${escapeHTML(rawPriceNumber)}</span>
+            </div>
+          </div>
+
+          <!-- Pie del Fleje -->
+          <div class="fleje-footer-row">
+            <span class="fleje-pack-info">
+              ${item.cantidadCaja ? `
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 2px; display: inline-block;">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>Cja: ${escapeHTML(item.cantidadCaja)}
+              ` : ''}
+            </span>
+            <span class="fleje-date-info">${formattedDate}</span>
+          </div>
+        `;
+      }
+
+      // 4. Lógica de Tanda y Botón de Imprimir en base a MÚLTIPLOS DE 10
+      function updateBatchStatusAndPrintButton() {
+        const total = items.length;
+        const remainder = total % 10;
+        const isComplete = total > 0 && remainder === 0;
+
+        btnPrint.disabled = !isComplete;
+
+        if (total === 0) {
+          statusBadge.className = "status-indicator pending";
+          statusIcon.textContent = "⏳";
+          statusText.textContent = "0 artículos cargados (Faltan 10 para imprimir)";
+          btnPrint.title = "Carga exactamente 10 artículos para habilitar la impresión.";
+        } else if (isComplete) {
+          const pages = total / 10;
+          statusBadge.className = "status-indicator ready";
+          statusIcon.textContent = "✅";
+          statusText.textContent = `¡Tanda lista! ${total} artículos (${pages} ${pages === 1 ? 'hoja completa' : 'hojas completas'})`;
+          btnPrint.title = `Imprimir ${pages} ${pages === 1 ? 'hoja' : 'hojas'} A4`;
+        } else {
+          const needed = 10 - remainder;
+          statusBadge.className = "status-indicator pending";
+          statusIcon.textContent = "⚠️";
+          statusText.textContent = `${total} artículos (Faltan ${needed} para completar la hoja de 10)`;
+          btnPrint.title = `Faltan ${needed} artículos para completar la hoja de 10 y evitar desperdicio de papel.`;
+        }
+      }
+
+      function escapeHTML(str) {
+        if (!str) return "";
+        return str
+          .toString()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      // Render inicial
+      render();
+
+    })();
+  </script>
+</body>
+</html>

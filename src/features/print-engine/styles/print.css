@@ -1,0 +1,40 @@
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0mm;
+  }
+
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  html, body {
+    width: 210mm !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  /* Ocultar interfaz web */
+  .no-print,
+  nav,
+  header,
+  aside,
+  button,
+  .print-controls {
+    display: none !important;
+  }
+
+  /* Área imprimible */
+  .printable-area {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    background: #ffffff !important;
+  }
+}
