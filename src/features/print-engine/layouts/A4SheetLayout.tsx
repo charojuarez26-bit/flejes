@@ -19,6 +19,17 @@ export const A4SheetLayout: React.FC<A4SheetLayoutProps> = ({
 
   return (
     <div className="flex flex-col items-center w-full print:block">
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+          html, body {
+            width: 210mm !important;
+          }
+        }
+      `}</style>
       {/* Encabezado visual de página (solo pantalla) */}
       <div className="w-[210mm] max-w-full flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 print:hidden">
         <span>Página {pageNumber} de {totalPages}</span>
