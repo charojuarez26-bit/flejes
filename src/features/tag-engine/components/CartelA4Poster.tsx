@@ -14,6 +14,8 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
   const { tradeName, branches, activeBranchId } = useTenantStore();
   const activeBranch = branches.find((b) => b.id === activeBranchId) || branches[0];
 
+  const businessTitle = (tradeName && tradeName.trim()) || 'TODO GOLOSINAS';
+
   const formattedPrice = (price: number) => {
     return price.toLocaleString('es-AR', {
       minimumFractionDigits: 0,
@@ -77,7 +79,7 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
             <Sparkles className="w-4 h-4" />
           </span>
           <div>
-            <span className="text-white font-extrabold">Modo Cartel A4 Apaisado (Horizontal): </span>
+            <span className="text-white font-extrabold">Modo Cartel A4 Apaisado: </span>
             <span className="text-slate-300 font-semibold">{item.product_name}</span>
           </div>
         </div>
@@ -102,53 +104,42 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
         </div>
       </div>
 
-      {/* 2. Contenedor Principal Expandido: Ocupa toda la hoja en pantalla (297mm x 210mm) y al imprimirse (w-full min-h-screen) */}
+      {/* 2. Contenedor Principal Expandido: Ocupa toda la hoja (297mm x 210mm) */}
       <div
-        className="w-[297mm] h-[210mm] max-w-full bg-white text-slate-950 p-6 md:p-8 flex flex-col justify-between items-center box-border border-8 border-slate-950 shadow-2xl relative select-none print:w-full print:min-h-screen print:h-screen print:max-h-screen print:m-0 print:border-none print:shadow-none print:p-8 print:justify-between"
+        className="w-[297mm] h-[210mm] max-w-full bg-white text-slate-950 p-6 md:p-7 flex flex-col justify-between items-center box-border border-8 border-slate-950 shadow-2xl relative select-none print:w-full print:min-h-screen print:h-screen print:max-h-screen print:m-0 print:border-none print:shadow-none print:p-7 print:justify-between overflow-hidden"
       >
-        {/* Encabezado Superior: Comercio + Banner de Impacto "SUPER OFERTA" */}
-        <header className="w-full flex items-center justify-between border-b-4 border-slate-950 pb-3">
-          <div className="text-left max-w-[28%]">
-            <div className="text-2xl md:text-3xl font-black uppercase tracking-tight text-slate-950 leading-none truncate">
-              {tradeName}
-            </div>
-            <div className="text-xs uppercase tracking-widest font-bold text-slate-600 mt-1 truncate">
-              {activeBranch?.name || 'Sucursal Principal'}
-            </div>
+        {/* ENCABEZADO INSTITUCIONAL SUPERIOR: Título del Negocio Gigante + Borde Divisor */}
+        <header className="w-full text-center border-b-8 border-slate-950 pb-2.5 flex-shrink-0">
+          <div className="text-4xl md:text-5xl font-black uppercase tracking-widest text-slate-950 leading-tight">
+            {businessTitle}
           </div>
-
-          {/* Banner llamativo "SUPER OFERTA" estilo cartel retail */}
-          <div className="bg-red-600 text-white font-black text-3xl md:text-5xl px-10 py-2.5 rounded-2xl uppercase tracking-widest border-4 border-red-800 shadow-xl transform -rotate-1 select-none">
-            SUPER OFERTA
-          </div>
-
-          <div className="text-right max-w-[28%]">
-            <div className="text-xs md:text-sm font-bold text-slate-900 uppercase">
-              Válido al {todayStr}
-            </div>
-            <div className="text-[10px] md:text-xs text-slate-500 uppercase font-semibold">
-              Hasta agotar stock
-            </div>
+          <div className="text-[11px] md:text-xs uppercase tracking-widest font-bold text-slate-600 mt-0.5">
+            {activeBranch?.name ? `${activeBranch.name} • ` : ''}Precios vigentes al {todayStr}
           </div>
         </header>
 
-        {/* 3. Centro Dominante: Flexbox centrado con Tipografía Gigante */}
-        <main className="flex-1 w-full flex flex-col justify-center items-center my-auto text-center gap-3 py-2 overflow-hidden">
-          {/* Nombre del Producto: text-6xl / text-7xl font-black */}
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-center uppercase leading-[1.04] tracking-tight text-slate-950 text-balance w-full px-4">
+        {/* CUERPO CENTRAL DE LA OFERTA: Flexbox centrado verticalmente sin desborde */}
+        <main className="flex-1 w-full flex flex-col justify-center items-center my-auto text-center gap-2 py-1.5 overflow-hidden">
+          {/* Insignia SUPER OFERTA llamativa */}
+          <div className="bg-red-600 text-white font-black text-2xl md:text-3xl px-8 py-1 rounded-xl uppercase tracking-widest border-4 border-red-800 shadow-md transform -rotate-1 select-none flex-shrink-0">
+            SUPER OFERTA
+          </div>
+
+          {/* Nombre del Producto Gigante */}
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-center uppercase leading-[1.05] tracking-tight text-slate-950 text-balance w-full px-4 max-w-[96%]">
             {item.product_name}
           </h1>
 
           {/* Presentación (si aplica) */}
           {item.box_quantity && (
-            <div className="text-lg md:text-xl font-black uppercase tracking-wider text-slate-800 bg-slate-100 border-2 border-slate-300 px-5 py-0.5 rounded-full">
+            <div className="text-sm md:text-base font-black uppercase tracking-wider text-slate-800 bg-slate-100 border-2 border-slate-300 px-4 py-0.5 rounded-full flex-shrink-0">
               Presentación: {item.box_quantity}
             </div>
           )}
 
           {/* Oferta Tachada (Precio Anterior) */}
           {templateType === 'oferta_tachada' && item.previous_price && (
-            <div className="bg-red-100 border-4 border-red-300 text-red-700 px-8 py-1 rounded-full flex items-center gap-4 text-2xl md:text-3xl font-black">
+            <div className="bg-red-100 border-2 border-red-300 text-red-700 px-6 py-0.5 rounded-full flex items-center gap-3 text-xl md:text-2xl font-black flex-shrink-0">
               <span className="uppercase tracking-wider">Antes:</span>
               <span className="line-through">
                 ${formattedPrice(item.previous_price)}
@@ -156,24 +147,24 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
             </div>
           )}
 
-          {/* Precio Dominante Bestial: text-[12rem] / text-[15rem] */}
+          {/* Precio Dominante */}
           {quantityDeal ? (
             <div className="flex flex-col items-center w-full">
               <div className="flex items-baseline justify-center tracking-tighter leading-none">
-                <span className="text-6xl md:text-8xl font-black text-slate-800 mr-4">
+                <span className="text-5xl md:text-7xl font-black text-slate-800 mr-3">
                   {quantityDeal.quantity} x
                 </span>
-                <span className="text-7xl md:text-9xl font-black text-slate-900 leading-none mr-2">
+                <span className="text-6xl md:text-8xl font-black text-slate-900 leading-none mr-2">
                   $
                 </span>
-                <span className="text-[8rem] md:text-[11rem] lg:text-[13rem] font-black text-slate-950 leading-none tracking-tighter">
+                <span className="text-7xl md:text-9xl lg:text-[10.5rem] font-black text-slate-950 leading-none tracking-tighter">
                   {formattedPrice(quantityDeal.totalPrice)}
                 </span>
               </div>
 
               {/* Placa de Precio Unitario */}
-              <div className="mt-2 px-9 py-2 bg-amber-400 text-slate-950 rounded-2xl border-4 border-slate-950 shadow-xl">
-                <span className="text-2xl md:text-3xl font-black uppercase tracking-wide">
+              <div className="mt-1 px-8 py-1 bg-amber-400 text-slate-950 rounded-xl border-4 border-slate-950 shadow-md">
+                <span className="text-xl md:text-2xl font-black uppercase tracking-wide">
                   PRECIO UNITARIO: ${quantityDeal.unitPriceFormatted}
                 </span>
               </div>
@@ -181,23 +172,23 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
           ) : (
             <div className="flex flex-col items-center w-full">
               {templateType === 'dos_por_uno' && (
-                <div className="mb-2 px-8 py-1.5 bg-amber-400 text-slate-950 font-black text-2xl md:text-3xl rounded-xl border-4 border-slate-950 uppercase">
+                <div className="mb-1 px-6 py-0.5 bg-amber-400 text-slate-950 font-black text-xl md:text-2xl rounded-xl border-2 border-slate-950 uppercase">
                   Llevando 2 u. c/u: ${formattedPrice(item.current_price / 2)}
                 </div>
               )}
 
               {templateType === 'segunda_50' && (
-                <div className="mb-2 px-8 py-1.5 bg-sky-500 text-white font-black text-2xl md:text-3xl rounded-xl border-4 border-slate-950 uppercase">
+                <div className="mb-1 px-6 py-0.5 bg-sky-500 text-white font-black text-xl md:text-2xl rounded-xl border-2 border-slate-950 uppercase">
                   La 2da unidad a: ${formattedPrice(item.current_price * 0.5)}
                 </div>
               )}
 
-              {/* Precio Normal Gigante */}
+              {/* Precio Normal Masivo */}
               <div className="flex items-baseline justify-center tracking-tighter leading-none">
-                <span className="text-7xl md:text-9xl lg:text-[10rem] font-black text-slate-900 leading-none mr-3">
+                <span className="text-6xl md:text-8xl lg:text-[9rem] font-black text-slate-900 leading-none mr-2">
                   $
                 </span>
-                <span className="text-[9.5rem] md:text-[12rem] lg:text-[14.5rem] font-black text-slate-950 leading-none tracking-tighter">
+                <span className="text-[8.5rem] md:text-[11rem] lg:text-[13rem] font-black text-slate-950 leading-none tracking-tighter">
                   {formattedPrice(item.current_price)}
                 </span>
               </div>
@@ -205,24 +196,23 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
           )}
         </main>
 
-        {/* 4. Pie de Página con Código de Barras Ampliado (w-3/4 max-w-4xl) */}
-        <footer className="w-full border-t-4 border-slate-950 pt-2.5 flex items-end justify-between">
-          {/* Código de barras ampliado */}
-          <div className="w-3/4 max-w-xl">
+        {/* PIE DE PÁGINA: Código de Barras Ampliado y Leyendas Legales */}
+        <footer className="w-full border-t-4 border-slate-950 pt-2 flex items-end justify-between flex-shrink-0">
+          <div className="w-3/4 max-w-lg">
             <BarcodeRenderer
               value={item.barcode}
-              height={40}
+              height={34}
               width={2.2}
-              fontSize={13}
+              fontSize={12}
             />
           </div>
 
           <div className="text-right flex flex-col justify-end">
-            <div className="text-xs md:text-sm font-bold text-slate-800 uppercase">
-              Precios válidos para {activeBranch?.name || tradeName}
+            <div className="text-xs font-bold text-slate-800 uppercase">
+              Hasta agotar stock
             </div>
-            <div className="text-[10px] md:text-[11px] text-slate-500">
-              Impreso mediante FlejesPro • PM Soluciones Digitales
+            <div className="text-[10px] text-slate-500">
+              FlejesPro • PM Soluciones Digitales
             </div>
           </div>
         </footer>
