@@ -332,7 +332,7 @@ export const MobileScanner: React.FC<MobileScannerProps> = ({ onBackToDesktop })
               </span>
               <input
                 type="text"
-                inputMode="decimal"
+                inputMode="text"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="1500"

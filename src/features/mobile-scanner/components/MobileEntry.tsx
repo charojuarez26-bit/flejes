@@ -242,10 +242,10 @@ export const MobileEntry: React.FC<MobileEntryProps> = ({ onBackToDesktop }) => 
                 </span>
                 <input
                   type="text"
-                  inputMode="decimal"
+                  inputMode="text"
                   value={currentPrice}
                   onChange={(e) => setCurrentPrice(e.target.value)}
-                  placeholder="1500"
+                  placeholder="1500 o 6x2000"
                   className="w-full pl-7 pr-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xl font-black text-emerald-400 placeholder-slate-600 focus:outline-none focus:border-emerald-500 shadow-inner"
                 />
               </div>
@@ -263,7 +263,7 @@ export const MobileEntry: React.FC<MobileEntryProps> = ({ onBackToDesktop }) => 
                 </span>
                 <input
                   type="text"
-                  inputMode="decimal"
+                  inputMode="text"
                   value={previousPrice}
                   onChange={(e) => setPreviousPrice(e.target.value)}
                   placeholder="1800"
