@@ -11,12 +11,26 @@ import { PasilloConnectModal } from './components/modals/PasilloConnectModal';
 import { HistorialPrecios } from './components/modals/HistorialPrecios';
 import { MobileScanner } from './features/mobile-scanner/components/MobileScanner';
 import { MobileEntry } from './features/mobile-scanner/components/MobileEntry';
-import { subscribeToPrintQueueRealtime } from './services/supabase/printQueueRealtime.service';
+import { SuperAdminAuth } from './features/super-admin/components/SuperAdminAuth';
+import { SuperAdminDashboard } from './features/super-admin/components/SuperAdminDashboard';
+import { SuperAdminGuard } from './features/super-admin/components/SuperAdminGuard';
+import { subscribeToPrintQueueRealtime, fetchPendingFlejes } from './services/supabase/printQueueRealtime.service';
+import { supabase } from './lib/supabase';
 import { usePrintQueueStore } from './stores/usePrintQueueStore';
+import { useTenantStore } from './stores/useTenantStore';
+import { DesktopStationAuth } from './features/settings/components/DesktopStationAuth';
 import { Sparkles, CheckCircle2, Send } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const { addItem, queue } = usePrintQueueStore();
+  const { addItem, setQueue, queue } = usePrintQueueStore();
+  const {
+    currentBranchId,
+    currentOrganizationId,
+    setCurrentBranch,
+    setCurrentOrganization,
+    setWhiteLabelName,
+  } = useTenantStore();
+  const [suspendedNotice, setSuspendedNotice] = useState<string | null>(null);
 
   const totalFlejesEnCola = queue.reduce(
     (acc, it) => acc + (it.cantidad ?? it.quantity ?? 1),
@@ -31,11 +45,21 @@ export const App: React.FC = () => {
   const [isPasilloModalOpen, setIsPasilloModalOpen] = useState(false);
   const [isHistorialOpen, setIsHistorialOpen] = useState(false);
 
-  // Detección inicial inteligente: Móvil (< 768px o User Agent) o ruta /repositor
-  const [viewMode, setViewMode] = useState<'desktop' | 'repositor' | 'pasillo'>(() => {
+  // Detección inicial inteligente: Móvil (< 768px o User Agent) o ruta /repositor, o /super-admin
+  const [viewMode, setViewMode] = useState<
+    'desktop' | 'repositor' | 'pasillo' | 'super-admin' | 'super-admin-dashboard'
+  >(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const path = window.location.pathname.toLowerCase();
+
+      // 0. Rutas de SuperAdmin
+      if (path === '/super-admin/dashboard' || path.startsWith('/super-admin/dashboard')) {
+        return 'super-admin-dashboard';
+      }
+      if (path === '/super-admin' || path.startsWith('/super-admin') || params.has('super-admin')) {
+        return 'super-admin';
+      }
 
       // 1. Rutas o parámetros explícitos
       if (params.has('repositor') || params.has('entry') || path.includes('/repositor')) {
@@ -60,6 +84,35 @@ export const App: React.FC = () => {
     }
     return 'desktop';
   });
+
+  const navigateTo = (
+    path: string,
+    newMode: 'desktop' | 'repositor' | 'pasillo' | 'super-admin' | 'super-admin-dashboard'
+  ) => {
+    if (typeof window !== 'undefined' && window.history.pushState) {
+      window.history.pushState({ path }, '', path);
+    }
+    setViewMode(newMode);
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase();
+      if (path === '/super-admin/dashboard' || path.startsWith('/super-admin/dashboard')) {
+        setViewMode('super-admin-dashboard');
+      } else if (path === '/super-admin' || path.startsWith('/super-admin')) {
+        setViewMode('super-admin');
+      } else if (path.includes('/repositor')) {
+        setViewMode('repositor');
+      } else if (path.includes('/pasillo')) {
+        setViewMode('pasillo');
+      } else {
+        setViewMode('desktop');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Notificación flotante de WebSocket Realtime en Desktop
   const [realtimeNotice, setRealtimeNotice] = useState<{
@@ -88,10 +141,25 @@ export const App: React.FC = () => {
     }
   };
 
-  // Suscripción en Tiempo Real vía Supabase Realtime WebSockets a flejes_pendientes (Solo en vista Desktop)
+  // Suscripción y Consulta en Tiempo Real para la sucursal activa en Desktop
   useEffect(() => {
-    if (viewMode !== 'desktop') return;
+    if (viewMode !== 'desktop' || !currentBranchId) return;
 
+    // 1. Carga inicial de flejes pendientes de la sucursal activa
+    let isCancelled = false;
+    const loadBranchQueue = async () => {
+      try {
+        const branchFlejes = await fetchPendingFlejes(currentBranchId);
+        if (!isCancelled && branchFlejes && branchFlejes.length > 0) {
+          setQueue(branchFlejes);
+        }
+      } catch (err) {
+        console.error("Error al cargar cola inicial de la sucursal:", err);
+      }
+    };
+    loadBranchQueue();
+
+    // 2. Suscripción Realtime blindada para la sucursal activa
     const unsubFlejes = subscribeToPrintQueueRealtime((newItem) => {
       addItem(newItem);
 
@@ -106,12 +174,118 @@ export const App: React.FC = () => {
       setTimeout(() => {
         setRealtimeNotice(null);
       }, 5000);
-    });
+    }, currentBranchId);
 
     return () => {
+      isCancelled = true;
       unsubFlejes();
     };
-  }, [addItem, viewMode]);
+  }, [addItem, setQueue, viewMode, currentBranchId]);
+
+  // Verificación estricta de suscripción y pago activo para la estación vinculada
+  useEffect(() => {
+    if (viewMode !== 'desktop' || !currentBranchId) return;
+
+    let isSubscribed = true;
+
+    const checkSubscriptionPaywall = async () => {
+      try {
+        let orgId = currentOrganizationId;
+        if (!orgId) {
+          const { data: branchData } = await supabase
+            .from('branches')
+            .select('organization_id')
+            .eq('id', currentBranchId)
+            .maybeSingle();
+          if (branchData?.organization_id) {
+            orgId = branchData.organization_id;
+          }
+        }
+
+        if (orgId) {
+          const { data: orgData, error } = await supabase
+            .from('organizations')
+            .select('id, name, subscription_status, next_billing_date')
+            .eq('id', orgId)
+            .maybeSingle();
+
+          if (error) {
+            console.error("Error al validar suscripción:", error);
+            return;
+          }
+
+          if (orgData && isSubscribed) {
+            const isStatusActive = orgData.subscription_status === 'active';
+            let isDateValid = true;
+            if (orgData.next_billing_date) {
+              const cleanDate = String(orgData.next_billing_date).split('T')[0];
+              const parts = cleanDate.split('-');
+              if (parts.length === 3) {
+                const dueDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 23, 59, 59, 999);
+                isDateValid = dueDate.getTime() >= Date.now();
+              }
+            }
+
+            if (!isStatusActive || !isDateValid) {
+              // Desvincular terminal inmediatamente por falta de pago / suspensión
+              setCurrentBranch(null);
+              setCurrentOrganization(null);
+              setWhiteLabelName(null);
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('current_branch_id');
+                localStorage.removeItem('current_organization_id');
+                localStorage.removeItem('white_label_name');
+                localStorage.removeItem('whiteLabelName');
+                localStorage.removeItem('branch_name');
+                localStorage.removeItem('branch_address');
+                localStorage.removeItem('organization_name');
+              }
+              setSuspendedNotice(
+                `Servicio Suspendido (${orgData.name}): Este comercio registra una suspensión temporal por falta de pago. Contacte a administración para reactivar.`
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error al comprobar estado de la suscripción:", err);
+      }
+    };
+
+    checkSubscriptionPaywall();
+
+    // Revalidar periódicamente cada 10 segundos y al reenfocar la ventana
+    const interval = setInterval(checkSubscriptionPaywall, 10000);
+    const onFocus = () => {
+      checkSubscriptionPaywall();
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [viewMode, currentBranchId, currentOrganizationId, setCurrentBranch, setCurrentOrganization, setWhiteLabelName]);
+
+  // Vista SuperAdmin: Login
+  if (viewMode === 'super-admin') {
+    return (
+      <SuperAdminAuth
+        onLoginSuccess={() => navigateTo('/super-admin/dashboard', 'super-admin-dashboard')}
+      />
+    );
+  }
+
+  // Vista SuperAdmin: Dashboard (Protegida por SuperAdminGuard)
+  if (viewMode === 'super-admin-dashboard') {
+    return (
+      <SuperAdminGuard onUnauthorized={() => navigateTo('/super-admin', 'super-admin')}>
+        <SuperAdminDashboard
+          onLogout={() => navigateTo('/super-admin', 'super-admin')}
+        />
+      </SuperAdminGuard>
+    );
+  }
 
   // Si se entra en "Modo Repositor" (Móvil Texto Puro)
   if (viewMode === 'repositor') {
@@ -143,6 +317,16 @@ export const App: React.FC = () => {
     );
   }
 
+  // Vista de Escritorio: Si no hay sucursal enlazada al terminal, mostrar Selector de Estación
+  if (!currentBranchId) {
+    return (
+      <DesktopStationAuth
+        initialAlertMessage={suspendedNotice}
+        onStationLinked={() => setSuspendedNotice(null)}
+      />
+    );
+  }
+
   // Vista de Escritorio (Desktop Principal)
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 font-sans text-slate-100">
@@ -152,6 +336,21 @@ export const App: React.FC = () => {
         onOpenConfig={() => setIsConfigOpen(true)}
         onOpenHistorial={() => setIsHistorialOpen(true)}
         onOpenRepositor={() => window.open('/repositor', '_blank')}
+        onDisconnectStation={() => {
+          setCurrentBranch(null);
+          setCurrentOrganization(null);
+          setWhiteLabelName(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('current_branch_id');
+            localStorage.removeItem('current_organization_id');
+            localStorage.removeItem('white_label_name');
+            localStorage.removeItem('whiteLabelName');
+            localStorage.removeItem('branch_name');
+            localStorage.removeItem('branch_address');
+            localStorage.removeItem('organization_name');
+            window.location.href = '/';
+          }
+        }}
       />
 
       {/* Toast flotante de registro recibido en Tiempo Real por WebSockets */}

@@ -11,7 +11,20 @@ interface FlejeTemplateProps {
 }
 
 export const FlejeTemplate: React.FC<FlejeTemplateProps> = ({ item, className = '', isThermal = false }) => {
-  const { tradeName, brandColor } = useTenantStore();
+  const {
+    tradeName,
+    whiteLabelName,
+    brandColor,
+    branchName,
+    branchAddress,
+    branches,
+    activeBranchId,
+  } = useTenantStore();
+  const activeBranch = branches.find((b) => b.id === activeBranchId) || branches[0];
+
+  const nombreComercio = whiteLabelName || tradeName || 'SUPERMERCADO';
+  const nombreSucursal = branchName || activeBranch?.name || 'Casa Central';
+  const direccionSucursal = branchAddress || activeBranch?.address || (typeof window !== 'undefined' ? localStorage.getItem('branch_address') : null);
 
   const formattedPrice = (price: number) => {
     return price.toLocaleString('es-AR', {
@@ -44,9 +57,11 @@ export const FlejeTemplate: React.FC<FlejeTemplateProps> = ({ item, className = 
         style={{ width: '100%', minHeight: '48mm' }}
       >
         <div className="flex justify-between items-center border-b border-black pb-1 mb-1">
-          <span className="font-black text-lg uppercase tracking-tight leading-none">{tradeName}</span>
+          <span className="font-black text-lg uppercase tracking-tight leading-none truncate max-w-[200px]">
+            {nombreComercio}
+          </span>
           {templateType !== 'normal' && (
-            <span className="bg-black text-white text-[9px] font-bold px-1 rounded uppercase">
+            <span className="bg-black text-white text-[9px] font-bold px-1 rounded uppercase flex-shrink-0">
               {templateType === 'oferta_tachada' ? 'OFERTA' : templateType === 'dos_por_uno' ? '2x1' : '2da 50%'}
             </span>
           )}
@@ -72,7 +87,10 @@ export const FlejeTemplate: React.FC<FlejeTemplateProps> = ({ item, className = 
           <div className="w-28">
             <BarcodeRenderer value={item.barcode} height={18} fontSize={8} />
           </div>
-          <div className="text-right text-[9px] text-slate-600 font-semibold">
+          <div className="text-right text-[8.5px] text-slate-600 font-semibold leading-tight">
+            <div className="text-[7.5px] text-slate-800 font-bold truncate max-w-[140px]">
+              {nombreSucursal}{direccionSucursal ? ` - ${direccionSucursal}` : ''}
+            </div>
             {item.box_quantity && <div>Cja: {item.box_quantity}</div>}
             <div>{todayStr}</div>
           </div>
@@ -96,7 +114,7 @@ export const FlejeTemplate: React.FC<FlejeTemplateProps> = ({ item, className = 
           className="font-black text-xl uppercase tracking-tight truncate mr-1 leading-none"
           style={{ color: brandColor }}
         >
-          {tradeName}
+          {nombreComercio}
         </span>
 
         {/* Badge Dinámico según Plantilla de Marketing */}
@@ -184,13 +202,16 @@ export const FlejeTemplate: React.FC<FlejeTemplateProps> = ({ item, className = 
         )}
       </div>
 
-      {/* 4. Pie: Código de Barras EAN-13 + Cantidad por Caja y Fecha */}
+      {/* 4. Pie: Código de Barras EAN-13 + Dirección Sucursal + Cantidad por Caja y Fecha */}
       <div className="flex justify-between items-end border-t border-slate-200 pt-0.5 mt-0.5">
         <div className="w-28">
           <BarcodeRenderer value={item.barcode} height={17} fontSize={7.5} />
         </div>
 
         <div className="text-right text-[9px] font-semibold text-slate-600 leading-tight">
+          <div className="text-[7.5px] text-slate-500 font-medium truncate max-w-[150px]">
+            {nombreSucursal}{direccionSucursal ? ` - ${direccionSucursal}` : ''}
+          </div>
           {item.box_quantity && (
             <div className="text-slate-900 font-bold">Cja: {item.box_quantity}</div>
           )}

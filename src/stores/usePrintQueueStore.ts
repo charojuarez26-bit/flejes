@@ -3,6 +3,7 @@ import { PrintQueueItem, PrintMode, FlejePendiente } from '../types/database.typ
 
 interface PrintQueueState {
   queue: PrintQueueItem[];
+  setQueue: (queue: PrintQueueItem[]) => void;
   printMode: PrintMode;
   setPrintMode: (mode: PrintMode) => void;
   addItem: (item: Partial<PrintQueueItem> & { product_name: string; current_price: number }) => void;
@@ -18,11 +19,20 @@ interface PrintQueueState {
   markBatchAsPrinted: () => void;
   posterItem: PrintQueueItem | null;
   setPosterItem: (item: PrintQueueItem | null) => void;
+  currentOrganizationId: string | null;
+  currentBranchId: string | null;
+  setCurrentOrganization: (orgId: string | null) => void;
+  setCurrentBranch: (branchId: string | null) => void;
 }
 
 export const usePrintQueueStore = create<PrintQueueState>((set) => ({
   queue: [],
+  setQueue: (queue) => set({ queue }),
   printMode: 'a4_sheet',
+  currentOrganizationId: null,
+  currentBranchId: null,
+  setCurrentOrganization: (currentOrganizationId) => set({ currentOrganizationId }),
+  setCurrentBranch: (currentBranchId) => set({ currentBranchId }),
 
   setPrintMode: (printMode) => set({ printMode }),
 

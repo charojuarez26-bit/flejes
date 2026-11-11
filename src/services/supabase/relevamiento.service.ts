@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { FlejePendiente } from '../../types/database.types';
+import { useTenantStore } from '../../stores/useTenantStore';
 
 const BUCKET_NAME = 'fotos_flejes';
 const BROADCAST_CHANNEL_NAME = 'flejes_relevamiento_channel';
@@ -78,6 +79,62 @@ export const crearFlejePendiente = async (params: {
 
   if (isSupabaseConfigured) {
     try {
+      const tenantState = useTenantStore.getState();
+      const currentOrgId = newItem.organization_id !== undefined ? newItem.organization_id : tenantState.currentOrganizationId;
+      const currentBranchId = newItem.branch_id !== undefined ? newItem.branch_id : tenantState.currentBranchId;
+
+      // Blindaje de seguridad: Validar si la organización sigue activa antes de insertar
+      let effectiveOrgId = currentOrgId;
+      if (!effectiveOrgId && currentBranchId) {
+        const { data: bData } = await supabase
+          .from('branches')
+          .select('organization_id')
+          .eq('id', currentBranchId)
+          .maybeSingle();
+        if (bData?.organization_id) {
+          effectiveOrgId = bData.organization_id;
+        }
+      }
+
+      if (effectiveOrgId) {
+        const { data: orgStatusData } = await supabase
+          .from('organizations')
+          .select('subscription_status, next_billing_date')
+          .eq('id', effectiveOrgId)
+          .maybeSingle();
+
+        if (orgStatusData) {
+          let isBillingCurrent = true;
+          if (orgStatusData.next_billing_date) {
+            const cleanDate = String(orgStatusData.next_billing_date).split('T')[0];
+            const parts = cleanDate.split('-');
+            if (parts.length === 3) {
+              const dueDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 23, 59, 59, 999);
+              isBillingCurrent = dueDate.getTime() >= Date.now();
+            }
+          }
+
+          if (orgStatusData.subscription_status !== 'active' || !isBillingCurrent) {
+            tenantState.setCurrentRepositor(null);
+            tenantState.setCurrentBranch(null);
+            tenantState.setCurrentOrganization(null);
+            tenantState.setWhiteLabelName(null);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('current_repositor');
+              localStorage.removeItem('repositor_nombre');
+              localStorage.removeItem('repositorName');
+              localStorage.removeItem('current_organization_id');
+              localStorage.removeItem('current_branch_id');
+              localStorage.removeItem('white_label_name');
+              localStorage.removeItem('whiteLabelName');
+              localStorage.removeItem('branch_name');
+              localStorage.removeItem('organization_name');
+            }
+            throw new Error('Acción bloqueada: cuenta suspendida');
+          }
+        }
+      }
+
       const insertRecord: Record<string, unknown> = {
         nombre: newItem.nombre_producto,
         precio: newItem.precio_nuevo,
@@ -87,6 +144,8 @@ export const crearFlejePendiente = async (params: {
         nombre_producto: newItem.nombre_producto,
         repositor: newItem.repositor,
         estado: 'pendiente',
+        organization_id: currentOrgId ?? null,
+        branch_id: currentBranchId ?? null,
       };
 
       const { data, error } = await supabase

@@ -11,10 +11,20 @@ interface CartelA4PosterProps {
 }
 
 export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose }) => {
-  const { tradeName, organization, branches, activeBranchId } = useTenantStore();
+  const {
+    tradeName,
+    whiteLabelName,
+    organization,
+    branches,
+    activeBranchId,
+    branchName,
+    branchAddress,
+  } = useTenantStore();
   const activeBranch = branches.find((b) => b.id === activeBranchId) || branches[0];
 
-  const nombreComercio = tradeName || organization?.header_title || organization?.name || 'TODO GOLOSINAS';
+  const nombreComercio = whiteLabelName || tradeName || organization?.header_title || organization?.name || 'SUPERMERCADO';
+  const nombreSucursal = branchName || activeBranch?.name || 'Casa Central';
+  const direccionSucursal = branchAddress || activeBranch?.address || (typeof window !== 'undefined' ? localStorage.getItem('branch_address') : null);
 
   const formattedPrice = (price: number) => {
     return price.toLocaleString('es-AR', {
@@ -113,11 +123,14 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
           <h1 className="text-5xl font-black uppercase tracking-widest text-black">
             {nombreComercio}
           </h1>
-          {activeBranch?.name && (
-            <div className="text-xs uppercase tracking-widest font-bold text-gray-700 mt-1">
-              {activeBranch.name} • Precios vigentes al {todayStr}
-            </div>
-          )}
+          <div className="text-xs uppercase tracking-widest font-bold text-gray-700 mt-1.5 flex items-center justify-center gap-2">
+            <span>
+              {nombreSucursal}
+              {direccionSucursal ? ` - ${direccionSucursal}` : ''}
+            </span>
+            <span>•</span>
+            <span>Precios vigentes al {todayStr}</span>
+          </div>
         </div>
 
         {/* 3. Contenedor que centra el resto del contenido en el espacio restante */}

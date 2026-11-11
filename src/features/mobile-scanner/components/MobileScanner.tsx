@@ -369,3 +369,5 @@ export const MobileScanner: React.FC<MobileScannerProps> = ({ onBackToDesktop })
     </div>
   );
 };
+
+export default MobileScanner;
