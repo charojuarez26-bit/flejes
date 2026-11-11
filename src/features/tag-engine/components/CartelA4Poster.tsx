@@ -11,10 +11,10 @@ interface CartelA4PosterProps {
 }
 
 export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose }) => {
-  const { tradeName, branches, activeBranchId } = useTenantStore();
+  const { tradeName, organization, branches, activeBranchId } = useTenantStore();
   const activeBranch = branches.find((b) => b.id === activeBranchId) || branches[0];
 
-  const businessTitle = (tradeName && tradeName.trim()) || 'TODO GOLOSINAS';
+  const nombreComercio = tradeName || organization?.header_title || organization?.name || 'TODO GOLOSINAS';
 
   const formattedPrice = (price: number) => {
     return price.toLocaleString('es-AR', {
@@ -47,7 +47,7 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
 
   return (
     <div className="flex flex-col items-center w-full">
-      {/* 1. Regla CSS estricta para forzar orientación horizontal A4 landscape y resetear márgenes */}
+      {/* 1. Regla CSS para forzar A4 horizontal sin márgenes */}
       <style>{`
         @media print {
           @page {
@@ -104,42 +104,44 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
         </div>
       </div>
 
-      {/* 2. Contenedor Principal Expandido: Ocupa toda la hoja (297mm x 210mm) */}
+      {/* 2. Contenedor Principal: Flexbox en columna sin rotaciones, todo derecho */}
       <div
-        className="w-[297mm] h-[210mm] max-w-full bg-white text-slate-950 p-6 md:p-7 flex flex-col justify-between items-center box-border border-8 border-slate-950 shadow-2xl relative select-none print:w-full print:min-h-screen print:h-screen print:max-h-screen print:m-0 print:border-none print:shadow-none print:p-7 print:justify-between overflow-hidden"
+        className="w-[297mm] h-[210mm] max-w-full flex flex-col w-full h-screen bg-white text-black p-8 box-border select-none shadow-2xl print:w-full print:h-screen print:p-8 print:shadow-none print:border-none overflow-hidden"
       >
-        {/* ENCABEZADO INSTITUCIONAL SUPERIOR: Título del Negocio Gigante + Borde Divisor */}
-        <header className="w-full text-center border-b-8 border-slate-950 pb-2.5 flex-shrink-0">
-          <div className="text-4xl md:text-5xl font-black uppercase tracking-widest text-slate-950 leading-tight">
-            {businessTitle}
-          </div>
-          <div className="text-[11px] md:text-xs uppercase tracking-widest font-bold text-slate-600 mt-0.5">
-            {activeBranch?.name ? `${activeBranch.name} • ` : ''}Precios vigentes al {todayStr}
-          </div>
-        </header>
+        {/* Título Institucional del Negocio (Marca Blanca) Arriba del Todo */}
+        <div className="w-full text-center border-b-8 border-black pb-4 mb-auto mt-2 flex-shrink-0">
+          <h1 className="text-5xl font-black uppercase tracking-widest text-black">
+            {nombreComercio}
+          </h1>
+          {activeBranch?.name && (
+            <div className="text-xs uppercase tracking-widest font-bold text-gray-700 mt-1">
+              {activeBranch.name} • Precios vigentes al {todayStr}
+            </div>
+          )}
+        </div>
 
-        {/* CUERPO CENTRAL DE LA OFERTA: Flexbox centrado verticalmente sin desborde */}
-        <main className="flex-1 w-full flex flex-col justify-center items-center my-auto text-center gap-2 py-1.5 overflow-hidden">
-          {/* Insignia SUPER OFERTA llamativa */}
-          <div className="bg-red-600 text-white font-black text-2xl md:text-3xl px-8 py-1 rounded-xl uppercase tracking-widest border-4 border-red-800 shadow-md transform -rotate-1 select-none flex-shrink-0">
+        {/* 3. Contenedor que centra el resto del contenido en el espacio restante */}
+        <div className="flex-1 flex flex-col justify-center items-center gap-3 my-auto w-full text-center overflow-hidden">
+          {/* Insignia SUPER OFERTA (completamente derecha, sin rotar) */}
+          <div className="bg-red-600 text-white font-black text-3xl md:text-4xl px-10 py-1.5 rounded-2xl uppercase tracking-widest border-4 border-red-800 shadow-md flex-shrink-0">
             SUPER OFERTA
           </div>
 
-          {/* Nombre del Producto Gigante */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-center uppercase leading-[1.05] tracking-tight text-slate-950 text-balance w-full px-4 max-w-[96%]">
+          {/* Nombre del Producto */}
+          <h2 className="text-5xl md:text-6xl font-black text-center uppercase tracking-tight text-black text-balance max-w-[96%] leading-tight">
             {item.product_name}
-          </h1>
+          </h2>
 
           {/* Presentación (si aplica) */}
           {item.box_quantity && (
-            <div className="text-sm md:text-base font-black uppercase tracking-wider text-slate-800 bg-slate-100 border-2 border-slate-300 px-4 py-0.5 rounded-full flex-shrink-0">
+            <div className="text-base md:text-lg font-black uppercase tracking-wider text-gray-800 bg-gray-100 border-2 border-gray-300 px-5 py-0.5 rounded-full flex-shrink-0">
               Presentación: {item.box_quantity}
             </div>
           )}
 
-          {/* Oferta Tachada (Precio Anterior) */}
+          {/* Oferta Tachada (si aplica) */}
           {templateType === 'oferta_tachada' && item.previous_price && (
-            <div className="bg-red-100 border-2 border-red-300 text-red-700 px-6 py-0.5 rounded-full flex items-center gap-3 text-xl md:text-2xl font-black flex-shrink-0">
+            <div className="bg-red-100 border-2 border-red-300 text-red-700 px-8 py-0.5 rounded-full flex items-center gap-4 text-2xl md:text-3xl font-black flex-shrink-0">
               <span className="uppercase tracking-wider">Antes:</span>
               <span className="line-through">
                 ${formattedPrice(item.previous_price)}
@@ -147,24 +149,24 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
             </div>
           )}
 
-          {/* Precio Dominante */}
+          {/* Precio Dominante Bestial */}
           {quantityDeal ? (
             <div className="flex flex-col items-center w-full">
               <div className="flex items-baseline justify-center tracking-tighter leading-none">
-                <span className="text-5xl md:text-7xl font-black text-slate-800 mr-3">
+                <span className="text-6xl md:text-7xl font-black text-gray-800 mr-3">
                   {quantityDeal.quantity} x
                 </span>
-                <span className="text-6xl md:text-8xl font-black text-slate-900 leading-none mr-2">
+                <span className="text-6xl md:text-8xl font-black text-black leading-none mr-2">
                   $
                 </span>
-                <span className="text-7xl md:text-9xl lg:text-[10.5rem] font-black text-slate-950 leading-none tracking-tighter">
+                <span className="text-[7.5rem] md:text-[9.5rem] lg:text-[11rem] font-black text-black leading-none tracking-tighter">
                   {formattedPrice(quantityDeal.totalPrice)}
                 </span>
               </div>
 
               {/* Placa de Precio Unitario */}
-              <div className="mt-1 px-8 py-1 bg-amber-400 text-slate-950 rounded-xl border-4 border-slate-950 shadow-md">
-                <span className="text-xl md:text-2xl font-black uppercase tracking-wide">
+              <div className="mt-1.5 px-8 py-1.5 bg-amber-400 text-black rounded-xl border-4 border-black shadow-md">
+                <span className="text-2xl font-black uppercase tracking-wide">
                   PRECIO UNITARIO: ${quantityDeal.unitPriceFormatted}
                 </span>
               </div>
@@ -172,50 +174,39 @@ export const CartelA4Poster: React.FC<CartelA4PosterProps> = ({ item, onClose })
           ) : (
             <div className="flex flex-col items-center w-full">
               {templateType === 'dos_por_uno' && (
-                <div className="mb-1 px-6 py-0.5 bg-amber-400 text-slate-950 font-black text-xl md:text-2xl rounded-xl border-2 border-slate-950 uppercase">
+                <div className="mb-1.5 px-6 py-1 bg-amber-400 text-black font-black text-2xl rounded-xl border-2 border-black uppercase">
                   Llevando 2 u. c/u: ${formattedPrice(item.current_price / 2)}
                 </div>
               )}
 
               {templateType === 'segunda_50' && (
-                <div className="mb-1 px-6 py-0.5 bg-sky-500 text-white font-black text-xl md:text-2xl rounded-xl border-2 border-slate-950 uppercase">
+                <div className="mb-1.5 px-6 py-1 bg-sky-500 text-white font-black text-2xl rounded-xl border-2 border-black uppercase">
                   La 2da unidad a: ${formattedPrice(item.current_price * 0.5)}
                 </div>
               )}
 
               {/* Precio Normal Masivo */}
               <div className="flex items-baseline justify-center tracking-tighter leading-none">
-                <span className="text-6xl md:text-8xl lg:text-[9rem] font-black text-slate-900 leading-none mr-2">
+                <span className="text-6xl md:text-8xl lg:text-[9rem] font-black text-black leading-none mr-2">
                   $
                 </span>
-                <span className="text-[8.5rem] md:text-[11rem] lg:text-[13rem] font-black text-slate-950 leading-none tracking-tighter">
+                <span className="text-[8.5rem] md:text-[11rem] lg:text-[13rem] font-black text-black leading-none tracking-tighter">
                   {formattedPrice(item.current_price)}
                 </span>
               </div>
             </div>
           )}
-        </main>
 
-        {/* PIE DE PÁGINA: Código de Barras Ampliado y Leyendas Legales */}
-        <footer className="w-full border-t-4 border-slate-950 pt-2 flex items-end justify-between flex-shrink-0">
-          <div className="w-3/4 max-w-lg">
+          {/* Código de Barras */}
+          <div className="w-full max-w-md mx-auto mt-2">
             <BarcodeRenderer
               value={item.barcode}
-              height={34}
+              height={36}
               width={2.2}
               fontSize={12}
             />
           </div>
-
-          <div className="text-right flex flex-col justify-end">
-            <div className="text-xs font-bold text-slate-800 uppercase">
-              Hasta agotar stock
-            </div>
-            <div className="text-[10px] text-slate-500">
-              FlejesPro • PM Soluciones Digitales
-            </div>
-          </div>
-        </footer>
+        </div>
       </div>
     </div>
   );
