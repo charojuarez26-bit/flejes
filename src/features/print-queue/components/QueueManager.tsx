@@ -6,7 +6,7 @@ import { actualizarNombreFleje } from '../../../services/supabase/relevamiento.s
 import { PrintQueueItem } from '../../../types/database.types';
 
 export const QueueManager: React.FC = () => {
-  const { queue, removeItem, updateQuantity, updateItemName, clearQueue, printMode, setPosterItem } =
+  const { queue, removeItem, incrementCantidad, decrementCantidad, updateItemName, clearQueue, printMode, setPosterItem } =
     usePrintQueueStore();
 
   const [lightboxItem, setLightboxItem] = useState<PrintQueueItem | null>(null);
@@ -14,9 +14,9 @@ export const QueueManager: React.FC = () => {
   const [inlineNameValue, setInlineNameValue] = useState<string>('');
 
   const isA4 = printMode === 'a4_sheet';
-  const totalItems = queue.length;
-  const remainder = totalItems % 10;
-  const isA4Complete = totalItems > 0 && remainder === 0;
+  const totalFlejes = queue.reduce((acc, it) => acc + (it.cantidad ?? it.quantity ?? 1), 0);
+  const remainder = totalFlejes % 10;
+  const isA4Complete = totalFlejes > 0 && remainder === 0;
 
   const startInlineEdit = (item: PrintQueueItem) => {
     setInlineEditingId(item.id);
@@ -46,11 +46,11 @@ export const QueueManager: React.FC = () => {
         <div className="flex items-center gap-2">
           <Tag className="w-4 h-4 text-sky-400" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100">
-            Cola de Impresión ({totalItems})
+            Cola de Impresión ({totalFlejes})
           </h3>
         </div>
 
-        {totalItems > 0 && (
+        {totalFlejes > 0 && (
           <button
             onClick={() => {
               if (confirm('¿Vaciar toda la cola de impresión?')) {
@@ -66,7 +66,7 @@ export const QueueManager: React.FC = () => {
 
       {/* Lista scrolleable */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1.5 divide-y divide-slate-800/50">
-        {totalItems === 0 ? (
+        {totalFlejes === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
             <AlertCircle className="w-10 h-10 mb-2 stroke-[1.5]" />
             <p className="text-xs font-semibold text-slate-400">Cola de impresión vacía</p>
@@ -211,17 +211,19 @@ export const QueueManager: React.FC = () => {
                   <div className="flex items-center gap-1 shrink-0">
                     <div className="flex items-center bg-slate-700/90 rounded border border-slate-600 shrink-0">
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        onClick={() => decrementCantidad(item.id)}
                         className="p-1 text-slate-300 hover:text-white"
-                        title="Reducir"
+                        title="Reducir cantidad"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="text-xs font-black px-1.5 text-white">{item.quantity}</span>
+                      <span className="text-xs font-black px-1.5 text-white">
+                        {item.cantidad ?? item.quantity ?? 1}
+                      </span>
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        onClick={() => incrementCantidad(item.id)}
                         className="p-1 text-slate-300 hover:text-white"
-                        title="Aumentar"
+                        title="Aumentar cantidad"
                       >
                         <Plus className="w-3 h-3" />
                       </button>
@@ -251,10 +253,10 @@ export const QueueManager: React.FC = () => {
       </div>
 
       {/* Footer con advertencia de desperdicio A4 */}
-      {isA4 && totalItems > 0 && !isA4Complete && (
+      {isA4 && totalFlejes > 0 && !isA4Complete && (
         <div className="p-2.5 bg-amber-950/70 border-t border-amber-800/80 text-[11px] text-amber-200 flex items-center justify-between">
           <span>⚠️ Faltan {10 - remainder} para completar la hoja de 10</span>
-          <span className="font-extrabold text-amber-300">{remainder} / 10</span>
+          <span className="font-extrabold text-amber-300">{remainder} / 10 ({totalFlejes} total)</span>
         </div>
       )}
 

@@ -9,6 +9,8 @@ interface PrintQueueState {
   addBatch: (items: Omit<PrintQueueItem, 'id' | 'created_at' | 'status'>[]) => void;
   addFromRelevamiento: (item: FlejePendiente) => void;
   removeItem: (id: string) => void;
+  incrementCantidad: (id: string) => void;
+  decrementCantidad: (id: string) => void;
   updateQuantity: (id: string, qty: number) => void;
   updateItemName: (id: string, name: string) => void;
   updateItem: (id: string, updates: Partial<PrintQueueItem>) => void;
@@ -41,7 +43,8 @@ export const usePrintQueueStore = create<PrintQueueState>((set) => ({
             previous_price: null,
             promo_type: 'none',
             template_type: 'normal',
-            quantity: 1,
+            quantity: item.cantidad ?? item.quantity ?? 1,
+            cantidad: item.cantidad ?? item.quantity ?? 1,
             source: 'manual',
             preferred_mode: 'a4_sheet',
             ...item,
@@ -125,11 +128,39 @@ export const usePrintQueueStore = create<PrintQueueState>((set) => ({
       queue: state.queue.filter((item) => item.id !== id),
     })),
 
+  incrementCantidad: (id) =>
+    set((state) => ({
+      queue: state.queue.map((item) => {
+        if (item.id === id) {
+          const current = item.cantidad ?? item.quantity ?? 1;
+          const updated = current + 1;
+          return { ...item, cantidad: updated, quantity: updated };
+        }
+        return item;
+      }),
+    })),
+
+  decrementCantidad: (id) =>
+    set((state) => ({
+      queue: state.queue.map((item) => {
+        if (item.id === id) {
+          const current = item.cantidad ?? item.quantity ?? 1;
+          const updated = Math.max(1, current - 1);
+          return { ...item, cantidad: updated, quantity: updated };
+        }
+        return item;
+      }),
+    })),
+
   updateQuantity: (id, quantity) =>
     set((state) => ({
-      queue: state.queue.map((item) =>
-        item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item
-      ),
+      queue: state.queue.map((item) => {
+        if (item.id === id) {
+          const updated = Math.max(1, quantity);
+          return { ...item, cantidad: updated, quantity: updated };
+        }
+        return item;
+      }),
     })),
 
   clearQueue: () => set({ queue: [] }),

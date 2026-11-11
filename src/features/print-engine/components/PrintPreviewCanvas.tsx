@@ -35,17 +35,25 @@ export const PrintPreviewCanvas: React.FC = () => {
     };
   }, [posterItem, setPosterItem]);
 
+  // Expansión ("Clonación") de flejes para impresión según propiedad cantidad
+  const itemsParaImprimir = React.useMemo(() => {
+    return queue.flatMap((item) => {
+      const cant = Math.max(1, item.cantidad ?? item.quantity ?? 1);
+      return Array(cant).fill(item);
+    });
+  }, [queue]);
+
   // Chunks de 10 items por cada hoja A4 (2 columnas x 5 filas)
   const chunkedPages = React.useMemo(() => {
     if (!isA4) return [];
-    if (queue.length === 0) return [[]]; // Mostrar al menos 1 hoja con placeholders
+    if (itemsParaImprimir.length === 0) return [[]]; // Mostrar al menos 1 hoja con placeholders
 
     const chunks = [];
-    for (let i = 0; i < queue.length; i += 10) {
-      chunks.push(queue.slice(i, i + 10));
+    for (let i = 0; i < itemsParaImprimir.length; i += 10) {
+      chunks.push(itemsParaImprimir.slice(i, i + 10));
     }
     return chunks;
-  }, [queue, isA4]);
+  }, [itemsParaImprimir, isA4]);
 
   return (
     <div className="flex-1 bg-slate-950 flex flex-col overflow-hidden relative">
@@ -61,7 +69,7 @@ export const PrintPreviewCanvas: React.FC = () => {
             <>
               <span>📄 Previsualización de Impresión en Vivo</span>
               <span className="text-[11px] text-slate-500 font-normal">
-                ({isA4 ? `${chunkedPages.length} hoja(s) A4` : `Rollo continuo ${printMode.replace('thermal_', '')}`})
+                ({isA4 ? `${chunkedPages.length} hoja(s) A4 • ${itemsParaImprimir.length} fleje(s)` : `Rollo continuo ${printMode.replace('thermal_', '')}`})
               </span>
             </>
           )}
@@ -117,7 +125,7 @@ export const PrintPreviewCanvas: React.FC = () => {
               </div>
             ))
           ) : (
-            <ThermalLayout items={queue} mode={printMode} />
+            <ThermalLayout items={itemsParaImprimir} mode={printMode} />
           )}
         </div>
       </div>

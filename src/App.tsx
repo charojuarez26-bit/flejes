@@ -18,6 +18,11 @@ import { Sparkles, CheckCircle2, Send } from 'lucide-react';
 export const App: React.FC = () => {
   const { addItem, queue } = usePrintQueueStore();
 
+  const totalFlejesEnCola = queue.reduce(
+    (acc, it) => acc + (it.cantidad ?? it.quantity ?? 1),
+    0
+  );
+
   const [activeTab, setActiveTab] = useState<'form' | 'queue'>('form');
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -206,7 +211,7 @@ export const App: React.FC = () => {
                     : 'bg-slate-800 text-slate-400 border border-slate-700'
                 }`}
               >
-                {queue.length}
+                {totalFlejesEnCola}
               </span>
             </button>
           </div>

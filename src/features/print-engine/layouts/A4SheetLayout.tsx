@@ -37,7 +37,7 @@ export const A4SheetLayout: React.FC<A4SheetLayoutProps> = ({
           if (item) {
             return (
               <TagRouter
-                key={item.id}
+                key={`${item.id}-page-${pageNumber}-slot-${idx}`}
                 item={item}
               />
             );

@@ -78,6 +78,7 @@ export interface PrintQueueItem {
   promo_detail?: string | null;
   box_quantity?: string | null;
   quantity: number;
+  cantidad?: number;
   status: PrintStatus;
   source: PrintSource;
   preferred_mode: PrintMode;
