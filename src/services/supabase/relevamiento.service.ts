@@ -78,30 +78,32 @@ export const crearFlejePendiente = async (params: {
 
   if (isSupabaseConfigured) {
     try {
+      const insertRecord: Record<string, unknown> = {
+        nombre: newItem.nombre_producto,
+        precio: newItem.precio_nuevo,
+        codigo_barra: newItem.codigo_barra,
+        precio_nuevo: newItem.precio_nuevo,
+        foto_url: newItem.foto_url,
+        nombre_producto: newItem.nombre_producto,
+        repositor: newItem.repositor,
+        estado: 'pendiente',
+      };
+
       const { data, error } = await supabase
         .from('flejes_pendientes')
-        .insert([
-          {
-            organization_id: newItem.organization_id,
-            branch_id: newItem.branch_id,
-            codigo_barra: newItem.codigo_barra,
-            precio_nuevo: newItem.precio_nuevo,
-            foto_url: newItem.foto_url,
-            nombre_producto: newItem.nombre_producto,
-            estado: 'pendiente',
-          },
-        ])
+        .insert([insertRecord])
         .select()
         .single();
 
       if (!error && data) {
-        newItem.id = data.id;
-        newItem.created_at = data.created_at;
+        const row = data as Record<string, unknown>;
+        newItem.id = String(row.id || newItem.id);
+        newItem.created_at = String(row.created_at || newItem.created_at);
       } else if (error) {
-        console.warn('Error insertando en flejes_pendientes:', error.message);
+        console.error("Error en Supabase:", error);
       }
     } catch (err) {
-      console.warn('Falla de red con Supabase DB:', err);
+      console.error("Error en Supabase:", err);
     }
   }
 
@@ -129,15 +131,20 @@ export const crearFlejePendiente = async (params: {
 export const actualizarNombreFleje = async (id: string, nombreProducto: string): Promise<void> => {
   if (isSupabaseConfigured && !id.startsWith('relev-')) {
     try {
-      await supabase
+      const { error } = await supabase
         .from('flejes_pendientes')
         .update({
+          nombre: nombreProducto,
           nombre_producto: nombreProducto,
           estado: 'incorporado',
         })
         .eq('id', id);
+
+      if (error) {
+        console.error("Error en Supabase:", error);
+      }
     } catch (err) {
-      console.warn('Error actualizando fleje en Supabase:', err);
+      console.error("Error en Supabase:", err);
     }
   }
 };

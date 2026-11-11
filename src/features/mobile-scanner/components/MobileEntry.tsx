@@ -121,6 +121,7 @@ export const MobileEntry: React.FC<MobileEntryProps> = ({ onBackToDesktop }) => 
 
       nameInputRef.current?.focus();
     } catch (err: unknown) {
+      console.error("Error en Supabase:", err);
       const msg = err instanceof Error ? err.message : 'Error al enviar artículo';
       setErrorMessage(msg);
     } finally {

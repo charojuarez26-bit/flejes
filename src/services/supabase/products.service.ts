@@ -18,47 +18,44 @@ const LOCAL_MOCK_CATALOG: Record<string, Partial<PrintQueueItem>> = {
 export async function fetchProductByBarcode(barcode: string, orgId: string, branchId: string): Promise<Omit<PrintQueueItem, 'id' | 'created_at' | 'status'>> {
   const cleanBarcode = barcode.trim();
 
-  // 1. Si Supabase está conectado, consultar base de datos en la nube
+  // 1. Si Supabase está conectado, consultar base de datos en la nube (tabla flejes_pendientes)
   if (isSupabaseConfigured) {
     try {
       const { data, error } = await supabase
-        .from('products')
-        .select(`
-          id,
-          name,
-          barcode,
-          box_quantity,
-          branch_prices (
-            current_price,
-            previous_price,
-            promo_type,
-            promo_detail
-          )
-        `)
-        .eq('organization_id', orgId)
-        .eq('barcode', cleanBarcode)
-        .single();
+        .from('flejes_pendientes')
+        .select('*')
+        .eq('codigo_barra', cleanBarcode)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (!error && data) {
-        const priceInfo = Array.isArray(data.branch_prices) ? data.branch_prices[0] : (data.branch_prices as any);
+      if (error) {
+        console.error("Error en Supabase:", error);
+      } else if (data) {
+        const row = data as Record<string, unknown>;
+        const productName = String(row.nombre || row.nombre_producto || `Artículo ${cleanBarcode}`);
+        const currentPrice = Number(row.precio != null ? row.precio : row.precio_nuevo) || 990;
+        const previousPrice = row.precio_anterior != null ? Number(row.precio_anterior) : null;
+        const boxQuantity = (row.cantidad_caja as string) || (row.box_quantity as string) || null;
+
         return {
           organization_id: orgId,
           branch_id: branchId,
-          product_id: data.id,
-          product_name: data.name,
-          barcode: data.barcode,
-          current_price: priceInfo?.current_price || 990,
-          previous_price: priceInfo?.previous_price || null,
-          promo_type: priceInfo?.promo_type || 'none',
-          promo_detail: priceInfo?.promo_detail || null,
-          box_quantity: data.box_quantity || null,
+          product_id: String(row.id || `prod-${cleanBarcode}`),
+          product_name: productName,
+          barcode: cleanBarcode,
+          current_price: currentPrice,
+          previous_price: previousPrice,
+          promo_type: previousPrice ? 'strikethrough' : 'none',
+          promo_detail: null,
+          box_quantity: boxQuantity,
           quantity: 1,
           source: 'scanner_mobile',
           preferred_mode: 'a4_sheet',
         };
       }
     } catch (err) {
-      console.warn('Fallo consulta Supabase, usando catálogo local:', err);
+      console.error("Error en Supabase:", err);
     }
   }
 

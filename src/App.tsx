@@ -11,13 +11,12 @@ import { PasilloConnectModal } from './components/modals/PasilloConnectModal';
 import { HistorialPrecios } from './components/modals/HistorialPrecios';
 import { MobileScanner } from './features/mobile-scanner/components/MobileScanner';
 import { MobileEntry } from './features/mobile-scanner/components/MobileEntry';
-import { subscribeToFlejesPendientes } from './services/supabase/relevamiento.service';
 import { subscribeToPrintQueueRealtime } from './services/supabase/printQueueRealtime.service';
 import { usePrintQueueStore } from './stores/usePrintQueueStore';
 import { Sparkles, CheckCircle2, Send } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const { addItem, addFromRelevamiento } = usePrintQueueStore();
+  const { addItem } = usePrintQueueStore();
 
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -83,37 +82,17 @@ export const App: React.FC = () => {
     }
   };
 
-  // Suscripción en Tiempo Real vía Supabase Realtime WebSockets (Solo en vista Desktop para optimizar memoria móvil)
+  // Suscripción en Tiempo Real vía Supabase Realtime WebSockets a flejes_pendientes (Solo en vista Desktop)
   useEffect(() => {
     if (viewMode !== 'desktop') return;
 
-    // 1. Suscripción a la tabla print_queue (Modo Repositor texto puro)
-    const unsubPrintQueue = subscribeToPrintQueueRealtime((newItem) => {
-      // Se agrega automáticamente al array del estado de Zustand
+    const unsubFlejes = subscribeToPrintQueueRealtime((newItem) => {
       addItem(newItem);
 
-      // Notificación en pantalla
       setRealtimeNotice({
         title: newItem.repositor ? `¡Artículo enviado por ${newItem.repositor}!` : '¡Artículo recibido desde el celular!',
         detail: `${newItem.product_name} • $${newItem.current_price.toLocaleString('es-AR')}`,
-        isRepositor: true,
-      });
-
-      playArrivalSound();
-
-      setTimeout(() => {
-        setRealtimeNotice(null);
-      }, 5000);
-    });
-
-    // 2. Suscripción a flejes_pendientes (Modo Pasillo con fotos de góndola)
-    const unsubPasillo = subscribeToFlejesPendientes((newItem) => {
-      addFromRelevamiento(newItem);
-
-      setRealtimeNotice({
-        title: newItem.repositor ? `¡Foto recibida de ${newItem.repositor}!` : '¡Foto de góndola recibida!',
-        detail: `Código ${newItem.codigo_barra} • $${Number(newItem.precio_nuevo).toLocaleString('es-AR')}`,
-        isRepositor: false,
+        isRepositor: Boolean(newItem.repositor),
       });
 
       playArrivalSound();
@@ -124,10 +103,9 @@ export const App: React.FC = () => {
     });
 
     return () => {
-      unsubPrintQueue();
-      unsubPasillo();
+      unsubFlejes();
     };
-  }, [addItem, addFromRelevamiento, viewMode]);
+  }, [addItem, viewMode]);
 
   // Si se entra en "Modo Repositor" (Móvil Texto Puro)
   if (viewMode === 'repositor') {

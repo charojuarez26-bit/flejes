@@ -27,7 +27,8 @@ export interface MobileEntryPayload {
 }
 
 /**
- * Inserta un fleje de texto desde el celular directamente en Supabase (tabla products y print_queue).
+ * Inserta un fleje de texto desde el celular directamente en Supabase (tabla flejes_pendientes).
+ * Columnas requeridas/opcionales: nombre, precio, precio_anterior, cantidad_caja, repositor.
  */
 export const insertMobileEntry = async (payload: MobileEntryPayload): Promise<PrintQueueItem> => {
   const orgId = payload.organization_id || '897d0beb-801d-4977-bc31-9b7e59def150';
@@ -35,75 +36,48 @@ export const insertMobileEntry = async (payload: MobileEntryPayload): Promise<Pr
   const barcode = generateEan13();
   const trimmedName = payload.name.trim();
 
-  let productId = `prod-${Date.now()}`;
   let queueId = `pq-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
   let createdAt = new Date().toISOString();
 
+  // Construcción del objeto coincidiendo exactamente con las columnas de flejes_pendientes
+  const insertPayload: Record<string, unknown> = {
+    nombre: trimmedName,
+    precio: payload.current_price,
+  };
+
+  if (payload.previous_price != null && !isNaN(payload.previous_price)) {
+    insertPayload.precio_anterior = payload.previous_price;
+  }
+
+  if (payload.box_quantity && payload.box_quantity.trim()) {
+    insertPayload.cantidad_caja = payload.box_quantity.trim();
+  }
+
+  if (payload.repositor && payload.repositor.trim()) {
+    insertPayload.repositor = payload.repositor.trim();
+  }
+
   if (isSupabaseConfigured) {
     try {
-      // 1. Dar de alta el producto en el catálogo maestro
-      const { data: prodData, error: prodErr } = await supabase
-        .from('products')
-        .insert({
-          organization_id: orgId,
-          barcode: barcode,
-          name: trimmedName,
-          box_quantity: payload.box_quantity ? payload.box_quantity.trim() : null,
-          description: payload.repositor ? `repositor:${payload.repositor.trim()}` : null,
-        })
+      const { data, error } = await supabase
+        .from('flejes_pendientes')
+        .insert([insertPayload])
         .select()
         .single();
 
-      if (!prodErr && prodData) {
-        productId = prodData.id;
-      } else if (prodErr) {
-        console.warn('Advertencia al insertar en products:', prodErr.message);
+      if (error) {
+        console.error("Error en Supabase:", error);
+        throw error;
       }
 
-      // 2. Insertar en la cola de impresión en tiempo real
-      const queueInsertPayload: Record<string, unknown> = {
-        organization_id: orgId,
-        branch_id: branchId,
-        product_id: productId,
-        current_price: payload.current_price,
-        previous_price: payload.previous_price || null,
-        box_quantity: payload.box_quantity ? payload.box_quantity.trim() : null,
-        quantity: 1,
-        status: 'pending',
-        source: 'scanner_mobile',
-        preferred_mode: 'a4_sheet',
-        promo_type: payload.previous_price ? 'strikethrough' : 'none',
-      };
-      if (payload.repositor) {
-        queueInsertPayload.repositor = payload.repositor.trim();
+      if (data) {
+        const row = data as Record<string, unknown>;
+        if (row.id) queueId = String(row.id);
+        if (row.created_at) createdAt = String(row.created_at);
       }
-
-      let { data: queueData, error: queueErr } = await supabase
-        .from('print_queue')
-        .insert(queueInsertPayload)
-        .select()
-        .single();
-
-      // Si la columna repositor aún no existe en print_queue, reintentar sin ese campo
-      if (queueErr && queueErr.message?.includes('repositor')) {
-        delete queueInsertPayload.repositor;
-        const retry = await supabase
-          .from('print_queue')
-          .insert(queueInsertPayload)
-          .select()
-          .single();
-        queueData = retry.data;
-        queueErr = retry.error;
-      }
-
-      if (!queueErr && queueData) {
-        queueId = queueData.id;
-        createdAt = queueData.created_at;
-      } else if (queueErr) {
-        console.warn('Advertencia al insertar en print_queue:', queueErr.message);
-      }
-    } catch (dbErr) {
-      console.warn('Error de conexión a Supabase al insertar fleje móvil:', dbErr);
+    } catch (error) {
+      console.error("Error en Supabase:", error);
+      throw error;
     }
   }
 
@@ -111,7 +85,7 @@ export const insertMobileEntry = async (payload: MobileEntryPayload): Promise<Pr
     id: queueId,
     organization_id: orgId,
     branch_id: branchId,
-    product_id: productId,
+    product_id: queueId,
     product_name: trimmedName,
     barcode: barcode,
     current_price: payload.current_price,
@@ -146,7 +120,7 @@ export const insertMobileEntry = async (payload: MobileEntryPayload): Promise<Pr
 };
 
 /**
- * Suscribe la aplicación a eventos de inserción en print_queue por WebSockets de Supabase Realtime.
+ * Suscribe la aplicación a eventos de inserción en flejes_pendientes por WebSockets de Supabase Realtime.
  */
 export const subscribeToPrintQueueRealtime = (
   onItemReceived: (item: PrintQueueItem) => void
@@ -156,58 +130,43 @@ export const subscribeToPrintQueueRealtime = (
   if (isSupabaseConfigured) {
     try {
       supabaseChannel = supabase
-        .channel('print_queue_websocket')
+        .channel('flejes_pendientes_realtime_ws')
         .on(
           'postgres_changes',
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'print_queue',
+            table: 'flejes_pendientes',
           },
-          async (payload) => {
-            console.log('⚡ Evento WebSocket Supabase Realtime INSERT en print_queue:', payload.new);
-            const row = payload.new as Record<string, unknown>;
+          (payload) => {
+            console.log('⚡ Evento WebSocket Supabase Realtime INSERT en flejes_pendientes:', payload.new);
+            const row = (payload.new || {}) as Record<string, unknown>;
 
-            // Consultar datos del producto relacionado
-            let productName = 'Artículo de Góndola';
-            let barcode = generateEan13();
-            let repositorName: string | null = (row.repositor as string) || null;
-
-            if (row.product_id) {
-              const { data: prod } = await supabase
-                .from('products')
-                .select('name, barcode, box_quantity, description')
-                .eq('id', row.product_id as string)
-                .maybeSingle();
-
-              if (prod) {
-                productName = prod.name;
-                barcode = prod.barcode;
-                if (!repositorName && prod.description && prod.description.startsWith('repositor:')) {
-                  repositorName = prod.description.replace('repositor:', '').trim();
-                }
-              }
-            }
-
-            const currentPrice = Number(row.current_price) || 0;
-            const previousPrice = row.previous_price ? Number(row.previous_price) : null;
+            const productName = String(row.nombre || row.nombre_producto || 'Artículo de Góndola');
+            const currentPrice = Number(row.precio != null ? row.precio : row.precio_nuevo) || 0;
+            const previousPrice = row.precio_anterior != null ? Number(row.precio_anterior) : null;
+            const boxQuantity = (row.cantidad_caja as string) || (row.box_quantity as string) || null;
+            const repositorName = (row.repositor as string) || null;
+            const barcode = (row.codigo_barra as string) || generateEan13();
 
             const newItem: PrintQueueItem = {
               id: (row.id as string) || `pq-${Date.now()}`,
-              organization_id: (row.organization_id as string) || 'org-demo-1',
-              branch_id: (row.branch_id as string) || 'branch-1',
-              product_id: (row.product_id as string) || `prod-${Date.now()}`,
+              organization_id: (row.organization_id as string) || '897d0beb-801d-4977-bc31-9b7e59def150',
+              branch_id: (row.branch_id as string) || '270dc478-e0fc-48d8-93c2-827a4e425175',
+              product_id: (row.id as string) || `prod-${Date.now()}`,
               product_name: productName,
               barcode: barcode,
               current_price: currentPrice,
               previous_price: previousPrice,
               promo_type: previousPrice ? 'strikethrough' : 'none',
               template_type: previousPrice ? 'oferta_tachada' : 'normal',
-              box_quantity: (row.box_quantity as string) || null,
+              box_quantity: boxQuantity,
               quantity: (row.quantity as number) || 1,
               status: 'pending',
               source: 'scanner_mobile',
               preferred_mode: 'a4_sheet',
+              foto_url: (row.foto_url as string) || undefined,
+              needs_name_review: !row.nombre && !row.nombre_producto,
               repositor: repositorName,
               created_at: (row.created_at as string) || new Date().toISOString(),
             };
@@ -216,10 +175,10 @@ export const subscribeToPrintQueueRealtime = (
           }
         )
         .subscribe((status) => {
-          console.log('Estado de conexión Supabase Realtime (print_queue):', status);
+          console.log('Estado de conexión Supabase Realtime (flejes_pendientes):', status);
         });
     } catch (err) {
-      console.warn('Error inicializando canal Realtime en print_queue:', err);
+      console.error("Error en Supabase:", err);
     }
   }
 
