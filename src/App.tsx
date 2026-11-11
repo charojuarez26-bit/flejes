@@ -16,8 +16,9 @@ import { usePrintQueueStore } from './stores/usePrintQueueStore';
 import { Sparkles, CheckCircle2, Send } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const { addItem } = usePrintQueueStore();
+  const { addItem, queue } = usePrintQueueStore();
 
+  const [activeTab, setActiveTab] = useState<'form' | 'queue'>('form');
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -177,9 +178,46 @@ export const App: React.FC = () => {
       <main className="flex-1 flex overflow-hidden print:block print:h-auto">
         {/* Mitad Izquierda: Carga Rápida, Cola y Créditos */}
         <section className="w-[490px] min-w-[420px] max-w-[550px] border-r border-slate-800 bg-slate-900/50 flex flex-col overflow-hidden z-10 print:hidden">
-          <div className="p-3.5 flex-1 flex flex-col gap-3 overflow-hidden">
-            <FastInputForm />
-            <QueueManager />
+          {/* Selector de Pestañas (Tabs) */}
+          <div className="flex items-center border-b border-slate-800 bg-slate-950 p-2 gap-2 flex-shrink-0">
+            <button
+              onClick={() => setActiveTab('form')}
+              className={`w-1/2 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
+                activeTab === 'form'
+                  ? 'bg-slate-800 text-sky-400 border border-slate-700 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              }`}
+            >
+              <span>📝 Cargar Fleje</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('queue')}
+              className={`w-1/2 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
+                activeTab === 'queue'
+                  ? 'bg-slate-800 text-sky-400 border border-slate-700 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+              }`}
+            >
+              <span>🖨️ Cola de Impresión</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+                  activeTab === 'queue'
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700'
+                }`}
+              >
+                {queue.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Contenedor Condicional con Scroll */}
+          <div className="flex-1 overflow-y-auto p-3.5 flex flex-col">
+            {activeTab === 'form' ? (
+              <FastInputForm />
+            ) : (
+              <QueueManager />
+            )}
           </div>
 
           {/* Firma Digital Permanente */}

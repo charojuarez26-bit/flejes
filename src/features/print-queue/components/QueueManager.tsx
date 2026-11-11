@@ -40,12 +40,12 @@ export const QueueManager: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+    <div className="flex-1 flex flex-col bg-slate-900/90 border border-slate-700/80 rounded-xl overflow-hidden shadow-xl">
       {/* Header de la lista */}
-      <div className="px-4 py-3 bg-slate-800/80 border-b border-slate-700/80 flex justify-between items-center">
+      <div className="px-4 py-3 bg-slate-800/90 border-b border-slate-700 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <Tag className="w-4 h-4 text-blue-400" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+          <Tag className="w-4 h-4 text-sky-400" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100">
             Cola de Impresión ({totalItems})
           </h3>
         </div>
@@ -57,7 +57,7 @@ export const QueueManager: React.FC = () => {
                 clearQueue();
               }
             }}
-            className="text-[11px] font-semibold text-slate-400 hover:text-red-400 transition"
+            className="text-[11px] font-semibold text-slate-300 hover:text-rose-400 transition"
           >
             Vaciar Cola
           </button>
@@ -83,12 +83,12 @@ export const QueueManager: React.FC = () => {
             return (
               <div
                 key={item.id}
-                className={`pt-2 pb-1.5 px-2 first:pt-1.5 rounded-lg transition border ${
+                className={`py-2 px-2.5 rounded-lg transition border shadow-sm ${
                   needsReview
-                    ? 'bg-amber-950/20 border-amber-800/60 shadow-sm'
+                    ? 'bg-amber-950/40 border-amber-600/70'
                     : isFromMobile
-                    ? 'bg-sky-950/20 border-sky-800/40 hover:bg-slate-800/50'
-                    : 'bg-slate-900 border-transparent hover:bg-slate-800/50'
+                    ? 'bg-sky-950/40 border-sky-700/60'
+                    : 'bg-slate-800 border-slate-700/90 hover:border-slate-600'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2.5">
@@ -107,7 +107,7 @@ export const QueueManager: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-400 font-bold text-[10px] flex items-center justify-center shrink-0">
+                      <span className="w-5 h-5 rounded-full bg-slate-700 text-slate-200 font-black text-[10px] flex items-center justify-center shrink-0 border border-slate-600">
                         {index + 1}
                       </span>
                     )}
@@ -142,7 +142,7 @@ export const QueueManager: React.FC = () => {
                             className={`text-xs font-bold truncate cursor-pointer block min-w-0 flex-1 ${
                               needsReview
                                 ? 'text-amber-300 italic underline decoration-dashed'
-                                : 'text-slate-200'
+                                : 'text-white'
                             }`}
                             onClick={() => startInlineEdit(item)}
                             title={needsReview ? 'Haz clic para asignar el nombre según la foto' : item.product_name}
@@ -209,18 +209,18 @@ export const QueueManager: React.FC = () => {
 
                   {/* 3. Contenedor del grupo de botones de acción */}
                   <div className="flex items-center gap-1 shrink-0">
-                    <div className="flex items-center bg-slate-800 rounded border border-slate-700 shrink-0">
+                    <div className="flex items-center bg-slate-700/90 rounded border border-slate-600 shrink-0">
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="p-1 text-slate-400 hover:text-slate-200"
+                        className="p-1 text-slate-300 hover:text-white"
                         title="Reducir"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="text-xs font-bold px-1 text-slate-200">{item.quantity}</span>
+                      <span className="text-xs font-black px-1.5 text-white">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="p-1 text-slate-400 hover:text-slate-200"
+                        className="p-1 text-slate-300 hover:text-white"
                         title="Aumentar"
                       >
                         <Plus className="w-3 h-3" />
@@ -229,7 +229,7 @@ export const QueueManager: React.FC = () => {
 
                     <button
                       onClick={() => setPosterItem(item)}
-                      className="p-1 text-amber-400 hover:text-amber-300 hover:bg-amber-950/60 rounded border border-transparent hover:border-amber-700/60 transition shrink-0"
+                      className="p-1 text-amber-300 hover:text-amber-200 bg-amber-950/60 hover:bg-amber-900/80 rounded border border-amber-700/60 transition shrink-0"
                       title="Imprimir Cartel A4 Gigante (1 página completa)"
                     >
                       <Megaphone className="w-3.5 h-3.5" />
@@ -237,7 +237,7 @@ export const QueueManager: React.FC = () => {
 
                     <button
                       onClick={() => removeItem(item.id)}
-                      className="p-1 text-slate-500 hover:text-red-400 rounded transition shrink-0"
+                      className="p-1 text-slate-400 hover:text-rose-400 rounded transition shrink-0"
                       title="Eliminar de la cola"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -252,9 +252,9 @@ export const QueueManager: React.FC = () => {
 
       {/* Footer con advertencia de desperdicio A4 */}
       {isA4 && totalItems > 0 && !isA4Complete && (
-        <div className="p-2.5 bg-amber-950/40 border-t border-amber-900/60 text-[11px] text-amber-300 flex items-center justify-between">
+        <div className="p-2.5 bg-amber-950/70 border-t border-amber-800/80 text-[11px] text-amber-200 flex items-center justify-between">
           <span>⚠️ Faltan {10 - remainder} para completar la hoja de 10</span>
-          <span className="font-semibold text-amber-400">{remainder} / 10</span>
+          <span className="font-extrabold text-amber-300">{remainder} / 10</span>
         </div>
       )}
 
