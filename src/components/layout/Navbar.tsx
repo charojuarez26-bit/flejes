@@ -21,7 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const activeBranch = branches.find((b) => b.id === activeBranchId) || branches[0];
 
-  const totalItems = queue.length;
+  const totalItems = queue.reduce((sum, item) => sum + (item.cantidad || item.quantity || 1), 0);
   const isA4 = printMode === 'a4_sheet';
   const isA4Ready = totalItems > 0 && totalItems % 10 === 0;
   const isPrintDisabled = isA4 ? !isA4Ready : totalItems === 0;
